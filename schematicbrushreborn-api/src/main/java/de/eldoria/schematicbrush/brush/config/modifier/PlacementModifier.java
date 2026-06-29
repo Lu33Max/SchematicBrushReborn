@@ -46,7 +46,7 @@ public class PlacementModifier extends BaseModifier {
      */
     public static final PlacementModifier OFFSET = of("Offset",
             "components.modifier.type.offset.name",
-            "components.modifier.type.offset.description", false);
+            "components.modifier.type.offset.description", true);
 
     /**
      * Filter modifier key
