@@ -3,8 +3,9 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
-
 package de.eldoria.schematicbrush.commands;
+
+import org.bukkit.plugin.Plugin;
 
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -30,15 +31,16 @@ import de.eldoria.schematicbrush.commands.brush.Sessions;
 import de.eldoria.schematicbrush.commands.brush.Show;
 import de.eldoria.schematicbrush.commands.brush.ShowSet;
 import de.eldoria.schematicbrush.commands.brush.ShowSets;
+import de.eldoria.schematicbrush.commands.brush.legacy.Legacy;
 import de.eldoria.schematicbrush.schematics.SchematicRegistry;
 import de.eldoria.schematicbrush.storage.StorageRegistry;
 import de.eldoria.schematicbrush.util.Permissions;
-import org.bukkit.plugin.Plugin;
 
 /**
  * Command which is used to create a new brush. Rewrite of old schbr command.
  */
 public class Brush extends AdvancedCommand {
+
     public Brush(Plugin plugin, SchematicRegistry schematics, StorageRegistry storage, BrushSettingsRegistry setting, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("sbr")
                 .withPermission(Permissions.Brush.USE)
@@ -54,6 +56,7 @@ public class Brush extends AdvancedCommand {
                     cmds.add(new Bind(plugin, sessions, messageBlocker));
                     cmds.add(new Clear(plugin, sessions));
                     cmds.add(create);
+                    cmds.add(new Legacy(plugin, sessions, setting, schematics));
                     cmds.add(new Modify(plugin, sessions, setting));
                     cmds.add(new ModifySet(plugin, sessions, setting, schematics));
                     cmds.add(new RemoveSet(plugin, sessions));
