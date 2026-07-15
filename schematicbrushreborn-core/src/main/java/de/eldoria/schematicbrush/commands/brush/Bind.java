@@ -6,6 +6,10 @@
 
 package de.eldoria.schematicbrush.commands.brush;
 
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
+
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -13,12 +17,8 @@ import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import de.eldoria.schematicbrush.util.WorldEditBrush;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
 
 public class Bind extends AdvancedCommand implements IPlayerTabExecutor {
     private final Sessions sessions;
@@ -47,7 +47,12 @@ public class Bind extends AdvancedCommand implements IPlayerTabExecutor {
         var schematicCount = brush.settings().getSchematicCount();
         var setcount = brush.settings().schematicSets().size();
         var message = MessageComposer.create()
-                                     .localeCode("commands.brush.bind.bound", Replacement.create("schematics", schematicCount), Replacement.create("sets", setcount))
+                                     .text(String.format(
+                                        "Brush bound. Using <value>%d<default> Schematics in <value>%d<default> Sets.",
+                                        schematicCount,
+                                        setcount
+                                     ))
+                                     .space()
                                      .text("<change><click:run_command:'/sbr'>[")
                                      .localeCode("words.edit")
                                      .text("]</click>")

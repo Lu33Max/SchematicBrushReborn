@@ -69,17 +69,21 @@ public class Legacy extends AdvancedCommand
                 input
         );
 
-        if (!WorldEditBrush.setBrush(
-                player,
-                builder.build(plugin(), player)
-        )) {
+        var brush = builder.build(plugin(), player);
+
+        if (!WorldEditBrush.setBrush(player, brush)) {
             return;
         }
 
+        var schematicCount = brush.settings().getSchematicCount();
+
         messageSender()
-                .sendMessage(player,
-                        "Legacy Brush loaded"
-                );
+            .sendMessage(player,
+                String.format(
+                    "Brush bound. Using <value>%d<default> Schematics.",
+                    schematicCount
+                )
+            );
     }
 
     @Override
