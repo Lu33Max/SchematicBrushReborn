@@ -57,9 +57,7 @@ public class Legacy extends AdvancedCommand
 
         String input = args.asString(0);
 
-        BrushBuilder builder
-                = sessions.getOrCreateSession(player);
-
+        BrushBuilder builder = sessions.getOrCreateSession(player);
         builder.clear();
 
         LegacyBrushBuilder.apply(

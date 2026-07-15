@@ -35,6 +35,7 @@ public class LegacyBrushBuilder {
         String flip = null;
         String rotation = null;
 
+        // find the position of the first modifier
         int flipPos = data.indexOf('!');
         int rotationPos = data.indexOf('@');
 
@@ -48,8 +49,10 @@ public class LegacyBrushBuilder {
             selectorEnd = Math.min(selectorEnd, rotationPos);
         }
 
+        // trim modifiers from the file path
         selector = data.substring(0, selectorEnd);
 
+        // extract modifier values without leading char
         if (flipPos >= 0) {
             int end = (rotationPos > flipPos) ? rotationPos : data.length();
             flip = data.substring(flipPos + 1, end);
@@ -60,10 +63,10 @@ public class LegacyBrushBuilder {
             rotation = data.substring(rotationPos + 1, end);
         }
 
+        // create empty set with given directory
         int id = builder.createSchematicSet();
         SchematicSetBuilder set = builder.getSchematicSet(id).orElseThrow();
 
-        // Selector
         Arguments selectorArgs = Arguments.create(
             plugin,
             player,
@@ -78,7 +81,7 @@ public class LegacyBrushBuilder {
         set.selector(parsedSelector);
         set.refreshSchematics(player, schematics);
 
-        // Flip
+        // set flip modifier on set
         if (flip != null && !flip.isBlank()) {
             Arguments flipArgs = Arguments.create(
                 plugin,
@@ -94,7 +97,7 @@ public class LegacyBrushBuilder {
             );
         }
 
-        // Rotation
+        // set rotation modifier on set
         if (rotation != null && !rotation.isBlank()) {
             Arguments rotationArgs = Arguments.create(
                 plugin,
@@ -112,6 +115,7 @@ public class LegacyBrushBuilder {
     }
 
     private static String[] createRotationArguments(String rotation) {
+
         if (rotation.equals("*")) {
             return new String[]{
                 "Rotation",
