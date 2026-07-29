@@ -82,41 +82,37 @@ public class LegacyBrushBuilder {
         set.refreshSchematics(player, schematics);
 
         // set flip modifier on set
-        if (flip != null && !flip.isBlank()) {
-            Arguments flipArgs = Arguments.create(
-                plugin,
-                player,
-                createFlipArguments(flip)
-            );
+        Arguments flipArgs = Arguments.create(
+            plugin,
+            player,
+            createFlipArguments(flip)
+        );
 
-            var modifier = registry.parseSchematicModifier(flipArgs);
+        var flipModifier = registry.parseSchematicModifier(flipArgs);
 
-            set.withMutator(
-                modifier.first,
-                modifier.second
-            );
-        }
+        set.withMutator(
+            flipModifier.first,
+            flipModifier.second
+        );
 
         // set rotation modifier on set
-        if (rotation != null && !rotation.isBlank()) {
-            Arguments rotationArgs = Arguments.create(
-                plugin,
-                player,
-                createRotationArguments(rotation)
-            );
+        Arguments rotationArgs = Arguments.create(
+            plugin,
+            player,
+            createRotationArguments(rotation)
+        );
 
-            var modifier = registry.parseSchematicModifier(rotationArgs);
+        var rotationModifier = registry.parseSchematicModifier(rotationArgs);
 
-            set.withMutator(
-                modifier.first,
-                modifier.second
-            );
-        }
+        set.withMutator(
+            rotationModifier.first,
+            rotationModifier.second
+        );
     }
 
     private static String[] createRotationArguments(String rotation) {
 
-        if (rotation.equals("*")) {
+        if (rotation == null || rotation.isBlank() || rotation.equals("*")) {
             return new String[]{
                 "Rotation",
                 "Random"
@@ -146,7 +142,7 @@ public class LegacyBrushBuilder {
 
     private static String[] createFlipArguments(String flip) {
 
-        if (flip.equals("*")) {
+        if (flip == null || flip.isBlank() || flip.equals("*")) {
             return new String[]{
                 "Flip",
                 "Random"
