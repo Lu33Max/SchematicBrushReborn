@@ -6,20 +6,6 @@
 
 package de.eldoria.schematicbrush.schematics;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldedit.extent.clipboard.Clipboard;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
-import com.sk89q.worldedit.regions.CuboidRegion;
-import com.sk89q.worldedit.world.block.BaseBlock;
-import de.eldoria.eldoutilities.utils.EMath;
-import de.eldoria.schematicbrush.SchematicBrushReborn;
-import de.eldoria.schematicbrush.util.Clipboards;
-import de.eldoria.schematicbrush.util.FAWE;
-import org.bukkit.Material;
-import org.jetbrains.annotations.NotNull;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -31,6 +17,21 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+
+import org.bukkit.Material;
+import org.jetbrains.annotations.NotNull;
+
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.extent.clipboard.Clipboard;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
+import com.sk89q.worldedit.regions.CuboidRegion;
+import com.sk89q.worldedit.world.block.BaseBlock;
+
+import de.eldoria.eldoutilities.utils.EMath;
+import de.eldoria.schematicbrush.SchematicBrushReborn;
+import de.eldoria.schematicbrush.util.Clipboards;
+import de.eldoria.schematicbrush.util.FAWE;
 
 /**
  * A loaded schematic which allows to load a schematic into a clipboard
@@ -51,6 +52,7 @@ public class Schematic implements Comparable<Schematic> {
      * Reference to file ot the schematic.
      */
     private final File file;
+    private final String directory; // ref to the relative schematic path
     private final String name;
     private final String effectiveName;
     private final long number;
@@ -64,10 +66,12 @@ public class Schematic implements Comparable<Schematic> {
      * @param file   file
      * @throws InvalidClipboardFormatException when the format could not be determined
      */
-    private Schematic(ClipboardFormat format, File file, String name) throws InvalidClipboardFormatException {
+    private Schematic(ClipboardFormat format, File file, String name, String directory) throws InvalidClipboardFormatException {
         this.format = format;
         this.file = file;
         this.name = name;
+        this.directory = directory;
+
         var matcher = numEnd.matcher(name);
         if (matcher.matches()) {
             effectiveName = matcher.group("name");
@@ -84,12 +88,13 @@ public class Schematic implements Comparable<Schematic> {
         }
     }
 
-    private static Schematic create(ClipboardFormat format, File file) {
+    private static Schematic create(ClipboardFormat format, File file, String directory) {
         if (format == null) {
             throw new InvalidClipboardFormatException("Could not determine schematic type of " + file.toPath());
         }
+
         var name = file.toPath().getFileName().toString().replaceAll(EXTENSION, "");
-        return new Schematic(format, file, name);
+        return new Schematic(format, file, name, directory);
     }
 
     /**
@@ -100,7 +105,7 @@ public class Schematic implements Comparable<Schematic> {
      * @throws InvalidClipboardFormatException when the format could not be determined
      */
     public static Schematic of(File file) throws InvalidClipboardFormatException {
-        return create(ClipboardFormats.findByFile(file), file);
+        return of(file, "");
     }
 
     /**
@@ -111,7 +116,16 @@ public class Schematic implements Comparable<Schematic> {
      * @throws InvalidClipboardFormatException when the format could not be determined
      */
     public static Schematic of(Path path) throws InvalidClipboardFormatException {
-        return create(ClipboardFormats.findByFile(path.toFile()), path.toFile());
+        return of(path, "");
+    }
+
+    
+    public static Schematic of(File file, String directory) throws InvalidClipboardFormatException {
+        return create(ClipboardFormats.findByFile(file), file, directory);
+    }
+
+    public static Schematic of(Path path, String directory) throws InvalidClipboardFormatException {
+        return create(ClipboardFormats.findByFile(path.toFile()), path.toFile(), directory);
     }
 
     /**
@@ -132,6 +146,15 @@ public class Schematic implements Comparable<Schematic> {
      */
     public String path() {
         return file.toPath().toString();
+    }
+
+    /**
+     * get the relative path to the file excluding the operating system file structure
+     * 
+     * @return relative path of file as string
+     */
+    public String directory() {
+        return directory;
     }
 
     /**
@@ -164,7 +187,8 @@ public class Schematic implements Comparable<Schematic> {
         var schematic = (Schematic) o;
         return format.getName().equals(schematic.format.getName()) &&
                file.getPath().equals(schematic.file.getPath()) &&
-               name.equals(schematic.name);
+               name.equals(schematic.name) && 
+               Objects.equals(directory, schematic.directory);
     }
 
     /**
@@ -178,7 +202,7 @@ public class Schematic implements Comparable<Schematic> {
 
     @Override
     public int hashCode() {
-        return Objects.hash(format.getName(), file.getPath(), name);
+        return Objects.hash(format.getName(), file.getPath(), name, directory);
     }
 
     /**
@@ -306,6 +330,7 @@ public class Schematic implements Comparable<Schematic> {
     public String toString() {
         return "Schematic{" +
                 "file=" + file +
+                ", directory='" + directory + '\'' +
                 ", name='" + name + '\'' +
                 '}';
     }

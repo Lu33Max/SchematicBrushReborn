@@ -71,7 +71,7 @@ public class LegacyBrushBuilder {
             plugin,
             player,
             new String[]{
-                "Directory",
+                "Path",
                 selector
             }
         );

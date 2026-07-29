@@ -6,23 +6,72 @@
 
 package de.eldoria.schematicbrush.brush.provider;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Function;
+
+import org.bukkit.configuration.serialization.ConfigurationSerializable;
+import org.bukkit.entity.Player;
+
 import de.eldoria.eldoutilities.commands.command.util.Argument;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.schematicbrush.brush.config.provider.SelectorProvider;
 import de.eldoria.schematicbrush.brush.config.selector.DirectorySelector;
 import de.eldoria.schematicbrush.brush.config.selector.NameSelector;
+import de.eldoria.schematicbrush.brush.config.selector.PathSelector;
 import de.eldoria.schematicbrush.brush.config.selector.RegexSelector;
 import de.eldoria.schematicbrush.brush.config.selector.Selector;
 import de.eldoria.schematicbrush.schematics.SchematicCache;
 import de.eldoria.schematicbrush.schematics.SchematicRegistry;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.bukkit.entity.Player;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Function;
 
 public abstract class SelectorProviderImpl extends SelectorProvider {
+
+    public static final Function<SchematicRegistry, SelectorProvider> PATH = registry ->
+        new SelectorProviderImpl(PathSelector.class,
+                "Path",
+                "components.provider.selector.path.name",
+                "components.provider.selector.path.description",
+                registry) {
+
+            private final Argument[] arguments = {
+                    Argument.unlocalizedInput("Path", true),
+                    Argument.unlocalizedInput("name_filter", false)
+            };
+
+            @Override
+            public Selector parse(Arguments args) {
+                return new PathSelector(
+                        args.asString(0),
+                        args.asString(1, "*")
+                );
+            }
+
+            @Override
+            public Argument[] arguments() {
+                return arguments;
+            }
+
+            @Override
+            public List<String> complete(Arguments args, Player player) {
+
+                if (args.size() == 1) {
+                    return registry()
+                            .get(SchematicCache.STORAGE)
+                            .getMatchingPatternDirectories(player, args.asString(0), 50);
+                }
+
+                if (args.size() == 2) {
+                    return Collections.singletonList("<name filter>");
+                }
+
+                return Collections.emptyList();
+            }
+
+            @Override
+            public Selector defaultSetting() {
+                return new PathSelector("*", "*");
+            }
+        };
 
     public static final Function<SchematicRegistry, SelectorProvider> DIRECTORY = registry ->
             new SelectorProviderImpl(DirectorySelector.class,

@@ -132,7 +132,7 @@ public class Legacy extends AdvancedCommand
 
             return schematics.registry()
                     .get(SchematicCache.STORAGE)
-                    .getMatchingDirectories(player, directory, 50)
+                    .getMatchingPatternDirectories(player, directory, 50)
                     .stream()
                     .map(dir -> "$" + dir)
                     .toList();

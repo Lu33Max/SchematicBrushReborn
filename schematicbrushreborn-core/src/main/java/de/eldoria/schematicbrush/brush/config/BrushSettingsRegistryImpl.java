@@ -6,6 +6,17 @@
 
 package de.eldoria.schematicbrush.brush.config;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.bukkit.configuration.serialization.ConfigurationSerialization;
+import org.bukkit.entity.Player;
+
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
@@ -33,16 +44,6 @@ import de.eldoria.schematicbrush.brush.provider.RotationProvider;
 import de.eldoria.schematicbrush.brush.provider.SchematicSelectionProviderImpl;
 import de.eldoria.schematicbrush.brush.provider.SelectorProviderImpl;
 import de.eldoria.schematicbrush.schematics.SchematicRegistry;
-import org.bukkit.configuration.serialization.ConfigurationSerialization;
-import org.bukkit.entity.Player;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Registry to register brush settings
@@ -248,7 +249,8 @@ public class BrushSettingsRegistryImpl implements BrushSettingsRegistry {
         // SELECTORS
         registerSelector(SelectorProviderImpl.NAME.apply(schematics));
         registerSelector(SelectorProviderImpl.REGEX.apply(schematics));
-        registerSelector(SelectorProviderImpl.DIRECTORY.apply(schematics));
+        //registerSelector(SelectorProviderImpl.DIRECTORY.apply(schematics));
+        registerSelector(SelectorProviderImpl.PATH.apply(schematics));
 
         // SCHEMATIC MODIFIER
         registerSchematicModifier(SchematicModifier.FLIP, FlipProvider.FIXED);

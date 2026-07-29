@@ -6,14 +6,6 @@
 
 package de.eldoria.schematicbrush.schematics;
 
-import de.eldoria.eldoutilities.messages.MessageSender;
-import de.eldoria.eldoutilities.utils.TextUtil;
-import de.eldoria.schematicbrush.SchematicBrushRebornImpl;
-import de.eldoria.schematicbrush.config.Configuration;
-import de.eldoria.schematicbrush.config.sections.SchematicSource;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.java.JavaPlugin;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,6 +14,8 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,6 +34,15 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
+
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import de.eldoria.eldoutilities.messages.MessageSender;
+import de.eldoria.eldoutilities.utils.TextUtil;
+import de.eldoria.schematicbrush.SchematicBrushRebornImpl;
+import de.eldoria.schematicbrush.config.Configuration;
+import de.eldoria.schematicbrush.config.sections.SchematicSource;
 
 public class SchematicBrushCache implements SchematicCache {
     private static final Pattern UUID_PATTERN = Pattern.compile("[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}");
@@ -215,7 +219,7 @@ public class SchematicBrushCache implements SchematicCache {
 
         Schematic schematic;
         try {
-            schematic = Schematic.of(path);
+            schematic = Schematic.of(path, cleanKey);
         } catch (InvalidClipboardFormatException e) {
             logger.log(Level.WARNING, "Format of " + path + " is invalid.");
             return;
@@ -401,6 +405,205 @@ public class SchematicBrushCache implements SchematicCache {
             return input.substring(0, i + 1);
         }
         return input;
+    }
+
+    /**
+     * Evaluates the input syntax from the path selector and returns all available
+     * options for tab completion.
+     * 
+     * @param input Path inputted by the player
+     * @param limit amount of returned directories
+     */
+    @Override
+    public List<String> getMatchingPatternDirectories(Player player, String input, int limit) {
+        assertReady(player);
+
+        // return the folders of highest level in case of empty input
+        if (input == null || input.isBlank()) {
+            return getMatchingDirectories(player, "", limit);
+        }
+
+        Set<String> candidates = new TreeSet<>();
+
+        collectNextPatternSegments(
+                candidates,
+                schematicsCache.keySet(),
+                input
+        );
+
+        if (userCache.containsKey(player.getUniqueId())) {
+            collectNextPatternSegments(
+                    candidates,
+                    userCache.get(player.getUniqueId()).keySet(),
+                    input
+            );
+        }
+
+        return buildPatternCompletions(input, candidates)
+                .stream()
+                .limit(limit)
+                .toList();
+    }
+
+    // check all the available directories against the given path and only return valid condidates
+    private void collectNextPatternSegments(
+        Set<String> result,
+        Collection<String> directories,
+        String input
+    ) {
+        // determine whether the funtion needs to search for directories the next level
+        // down or do a complete on the currently unfinished level
+        boolean endsWithSeparator = input.endsWith("/");
+
+        String[] inputParts = input.isBlank()
+                ? new String[0]
+                : input.split("/");
+
+        int depth = endsWithSeparator
+                ? inputParts.length
+                : inputParts.length - 1;
+
+        String currentSegment = endsWithSeparator
+                ? ""
+                : inputParts[inputParts.length - 1];
+
+        for (String directory : directories) {
+
+            String[] parts = directory.split("/");
+
+            if (parts.length <= depth) 
+                continue;
+
+            boolean matches = true;
+
+            for (int i = 0; i < depth; i++) {
+                if (!matchesPatternSegment(inputParts[i], parts[i])) 
+                {
+                    matches = false;
+                    break;
+                }
+            }
+
+            if (!matches) 
+                continue;
+
+            String next = parts[depth];
+
+            if (!next.toLowerCase()
+                    .startsWith(getCurrentFilter(currentSegment).toLowerCase())) {
+                continue;
+            }
+
+            result.add(next);
+        }
+    }
+
+    // check the candidate segment against the given segment from the path
+    private boolean matchesPatternSegment(
+            String input,
+            String candidate
+    ) {
+        if (input.equals("*")) {
+            return true;
+        }
+
+        return Arrays.stream(input.split(","))
+                .anyMatch(value ->
+                        value.equalsIgnoreCase(candidate)
+                );
+    }
+
+    // get the clean segement currently being typed
+    private String getCurrentFilter(String input) {
+        if (input.isEmpty()) {
+            return "";
+        }
+
+        int comma = input.lastIndexOf(',');
+
+        if (comma >= 0) {
+            return input.substring(comma + 1);
+        }
+
+        int slash = input.lastIndexOf('/');
+
+        if (slash == -1) {
+            return input;
+        }
+
+        return input.substring(slash + 1);
+    }
+
+    // turn all valid candidate strings into valid tab complete options
+    private List<String> buildPatternCompletions(
+        String input,
+        Set<String> candidates
+    ) {
+
+        if (candidates.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        int slash = input.lastIndexOf('/');
+
+        String prefix = slash == -1
+                ? ""
+                : input.substring(0, slash + 1);
+
+        String current = slash == -1
+                ? input
+                : input.substring(slash + 1);
+
+        /*
+        * Multi selection:
+        *
+        * trees/oak,
+        * ->
+        * trees/oak,birch
+        */
+        if (current.contains(",")) {
+
+            int comma = current.lastIndexOf(',');
+
+            String selectedPart =
+                current.substring(0, comma);
+
+            String filter =
+                    current.substring(comma + 1);
+
+            Set<String> selected =
+                Arrays.stream(selectedPart.split(","))
+                    .filter(s -> !s.isBlank())
+                    .map(String::toLowerCase)
+                    .collect(Collectors.toSet());
+
+            return candidates.stream()
+                    .filter(candidate ->
+                            !selected.contains(candidate.toLowerCase()))
+                    .filter(candidate ->
+                            candidate
+                                    .toLowerCase()
+                                    .startsWith(filter.toLowerCase()))
+                    .map(candidate ->
+                            prefix + selectedPart + "," + candidate)
+                    .toList();
+        }
+
+        /*
+        * normal completion
+        *
+        * trees/oak/
+        * ->
+        * trees/oak/shape
+        */
+        return candidates.stream()
+                .filter(candidate ->
+                        candidate
+                                .toLowerCase()
+                                .startsWith(current.toLowerCase()))
+                .map(candidate ->
+                        prefix + candidate)
+                .toList();
     }
 
     /**

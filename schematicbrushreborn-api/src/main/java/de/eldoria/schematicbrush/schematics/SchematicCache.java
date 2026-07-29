@@ -6,12 +6,13 @@
 
 package de.eldoria.schematicbrush.schematics;
 
-import de.eldoria.schematicbrush.brush.config.util.Nameable;
-import org.bukkit.entity.Player;
-
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+
+import org.bukkit.entity.Player;
+
+import de.eldoria.schematicbrush.brush.config.util.Nameable;
 
 /**
  * A cache which provides schematics based on filters or other factors.
@@ -74,6 +75,8 @@ public interface SchematicCache {
      * @return list of schematics names with size of count or shorter
      */
     List<String> getMatchingSchematics(Player player, String name, int count);
+
+    List<String> getMatchingPatternDirectories(Player player, String input, int limit);
 
     /**
      * Get schematic count

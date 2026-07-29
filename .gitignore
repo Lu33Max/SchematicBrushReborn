@@ -31,3 +31,5 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 .direnv
+/schematicbrushreborn-api/bin
+/schematicbrushreborn-core/bin
