@@ -20,14 +20,14 @@ import de.eldoria.schematicbrush.schematics.SchematicCache;
 import de.eldoria.schematicbrush.schematics.SchematicRegistry;
 import de.eldoria.schematicbrush.util.WorldEditBrush;
 
-public class Legacy extends AdvancedCommand
+public class Simple extends AdvancedCommand
         implements IPlayerTabExecutor {
 
     private final Sessions sessions;
     private final BrushSettingsRegistry registry;
     private final SchematicRegistry schematics;
 
-    public Legacy(
+    public Simple(
             Plugin plugin,
             Sessions sessions,
             BrushSettingsRegistry registry,
@@ -35,7 +35,7 @@ public class Legacy extends AdvancedCommand
     ) {
 
         super(plugin,
-                CommandMeta.builder("legacy")
+                CommandMeta.builder("simple")
                         .addUnlocalizedArgument(
                                 "path",
                                 true
@@ -60,7 +60,7 @@ public class Legacy extends AdvancedCommand
         BrushBuilder builder = sessions.getOrCreateSession(player);
         builder.clear();
 
-        LegacyBrushBuilder.apply(
+        SimpleBrushBuilder.apply(
                 plugin(),
                 player,
                 builder,

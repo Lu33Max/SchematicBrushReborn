@@ -18,7 +18,7 @@ import de.eldoria.schematicbrush.brush.config.builder.SchematicSetBuilder;
 import de.eldoria.schematicbrush.brush.config.selector.Selector;
 import de.eldoria.schematicbrush.schematics.SchematicRegistry;
 
-public class LegacyBrushBuilder {
+public class SimpleBrushBuilder {
 
     public static void apply(
         Plugin plugin,

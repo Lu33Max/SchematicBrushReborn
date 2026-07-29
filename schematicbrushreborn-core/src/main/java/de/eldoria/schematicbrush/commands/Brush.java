@@ -31,7 +31,7 @@ import de.eldoria.schematicbrush.commands.brush.Sessions;
 import de.eldoria.schematicbrush.commands.brush.Show;
 import de.eldoria.schematicbrush.commands.brush.ShowSet;
 import de.eldoria.schematicbrush.commands.brush.ShowSets;
-import de.eldoria.schematicbrush.commands.brush.legacy.Legacy;
+import de.eldoria.schematicbrush.commands.brush.legacy.Simple;
 import de.eldoria.schematicbrush.schematics.SchematicRegistry;
 import de.eldoria.schematicbrush.storage.StorageRegistry;
 import de.eldoria.schematicbrush.util.Permissions;
@@ -56,7 +56,7 @@ public class Brush extends AdvancedCommand {
                     cmds.add(new Bind(plugin, sessions, messageBlocker));
                     cmds.add(new Clear(plugin, sessions));
                     cmds.add(create);
-                    cmds.add(new Legacy(plugin, sessions, setting, schematics));
+                    cmds.add(new Simple(plugin, sessions, setting, schematics));
                     cmds.add(new Modify(plugin, sessions, setting));
                     cmds.add(new ModifySet(plugin, sessions, setting, schematics));
                     cmds.add(new RemoveSet(plugin, sessions));
