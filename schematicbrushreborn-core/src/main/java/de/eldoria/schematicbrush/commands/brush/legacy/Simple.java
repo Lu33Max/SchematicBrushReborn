@@ -61,29 +61,36 @@ public class Simple extends AdvancedCommand
         builder.clear();
 
         SimpleBrushBuilder.apply(
-                plugin(),
-                player,
-                builder,
-                registry,
-                schematics,
-                input
+            plugin(),
+            player,
+            builder,
+            registry,
+            schematics,
+            input
         );
 
-        var brush = builder.build(plugin(), player);
+        try {
+            var brush = builder.build(plugin(), player);
 
-        if (!WorldEditBrush.setBrush(player, brush)) {
-            return;
+            try {
+                WorldEditBrush.setBrush(player, brush);
+            } catch (Exception e) {
+                messageSender().sendError(player, "Failed to set brush. Please hold a valid tool.");
+                return;
+            }
+
+            var schematicCount = brush.settings().getSchematicCount();
+
+            messageSender()
+                .sendMessage(player,
+                    String.format(
+                        "Brush bound. Using <value>%d<default> Schematics.",
+                        schematicCount
+                    )
+                );
+        } catch (IndexOutOfBoundsException e) {
+            messageSender().sendError(player, "Invalid path format. Use <value>$path/to/schematic<default> or <value>$path/to/schematic!flip@rotation<default>.");
         }
-
-        var schematicCount = brush.settings().getSchematicCount();
-
-        messageSender()
-            .sendMessage(player,
-                String.format(
-                    "Brush bound. Using <value>%d<default> Schematics.",
-                    schematicCount
-                )
-            );
     }
 
     @Override
