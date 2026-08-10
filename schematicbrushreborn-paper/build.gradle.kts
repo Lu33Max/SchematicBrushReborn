@@ -144,6 +144,16 @@ bukkit {
             aliases = listOf("sbrm", "schbrm")
             permission = "schematicbrush.brush.use"
         }
+
+        register("wood") {
+            description = "Plant randomized trees inside the current selection"
+            permission = "schematicbrush.wood.use"
+        }
+
+        register("treereplace") {
+            description = "Replace matching blocks with tree schematics inside the current selection"
+            permission = "schematicbrush.treereplace.use"
+        }
     }
 
     permissions {
@@ -152,6 +162,12 @@ bukkit {
         }
         register("schematicbrush.brush.use") {
             description = "Allows to use the schematic brush"
+        }
+        register("schematicbrush.wood.use") {
+            description = "Allows use of the wood command"
+        }
+        register("schematicbrush.treereplace.use") {
+            description = "Allows use of the treereplace command"
         }
         register("schematicbrush.brush.preview") {
             description = "Allows to toggle and use preview"

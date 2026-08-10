@@ -208,6 +208,8 @@ public class SchematicBrushRebornImpl extends SchematicBrushReborn {
         var settingsCommand = new Settings(this, configuration, renderService, notifyListener, messageBlocker);
         var brushPresetsCommand = new BrushPresets(this, storageRegistry, messageBlocker, settingsRegistry);
         var modifyCommand = new Modify(this, settingsRegistry);
+        var woodCommand = new de.eldoria.schematicbrush.commands.Wood(this, schematics);
+        var treeReplaceCommand = new de.eldoria.schematicbrush.commands.TreeReplace(this, schematics);
 
         enableMetrics();
 
@@ -224,6 +226,8 @@ public class SchematicBrushRebornImpl extends SchematicBrushReborn {
         registerCommand(settingsCommand);
         registerCommand(brushPresetsCommand);
         registerCommand(modifyCommand);
+        registerCommand(woodCommand);
+        registerCommand(treeReplaceCommand);
     }
 
     /**

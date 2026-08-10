@@ -27,6 +27,24 @@ public final class Permissions {
         }
     }
 
+    public static final class Wood {
+        private static final String WOOD = perm(BASE, "wood");
+        public static final String USE = perm(WOOD, "use");
+
+        private Wood() {
+            throw new UnsupportedOperationException("This is a utility class.");
+        }
+    }
+
+    public static final class TreeReplace {
+        private static final String TREE_REPLACE = perm(BASE, "treereplace");
+        public static final String USE = perm(TREE_REPLACE, "use");
+
+        private TreeReplace() {
+            throw new UnsupportedOperationException("This is a utility class.");
+        }
+    }
+
     public static final class Preset {
         private static final String PRESET = perm(BASE, "preset");
         public static final String USE = perm(PRESET, "use");

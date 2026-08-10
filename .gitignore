@@ -33,3 +33,4 @@ buildNumber.properties
 .direnv
 /schematicbrushreborn-api/bin
 /schematicbrushreborn-core/bin
+.vscode/settings.json
