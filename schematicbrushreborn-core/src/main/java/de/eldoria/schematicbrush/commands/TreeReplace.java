@@ -13,7 +13,9 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import com.sk89q.worldedit.IncompleteRegionException;
 import com.sk89q.worldedit.LocalSession;
+import com.sk89q.worldedit.MaxChangedBlocksException;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.function.operation.Operations;
@@ -25,8 +27,8 @@ import com.sk89q.worldedit.session.ClipboardHolder;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.schematicbrush.commands.util.CommandUtils;
 import de.eldoria.schematicbrush.schematics.Schematic;
 import de.eldoria.schematicbrush.schematics.SchematicCache;
@@ -74,8 +76,8 @@ public class TreeReplace extends AdvancedCommand implements IPlayerTabExecutor {
             }
         }
 
-        Set<Schematic> schematics = WoodPlacement.selectSchematics(player, this.schematics, path);
-        if (schematics.isEmpty()) {
+        Set<Schematic> treeSchematics = WoodPlacement.selectSchematics(player, this.schematics, path);
+        if (treeSchematics.isEmpty()) {
             messageSender().sendError(player, "No schematics found for path: " + path);
             return;
         }
@@ -94,7 +96,7 @@ public class TreeReplace extends AdvancedCommand implements IPlayerTabExecutor {
         Region region;
         try {
             region = localSession.getSelection(selectionWorld);
-        } catch (Exception e) {
+        } catch (IncompleteRegionException e) {
             messageSender().sendError(player, "Please make a valid selection first.");
             return;
         }
@@ -109,7 +111,7 @@ public class TreeReplace extends AdvancedCommand implements IPlayerTabExecutor {
                 .actor(BukkitAdapter.adapt(player))
                 .build()) {
             editSession.setMask(localSession.getMask());
-            List<WoodPlacement.Site> sites = WoodPlacement.replaceTrees(editSession, region, schematics, blocks);
+            List<WoodPlacement.Site> sites = WoodPlacement.replaceTrees(editSession, region, treeSchematics, blocks);
             if (sites.isEmpty()) {
                 messageSender().sendError(player, "No matching blocks found in selection.");
                 return;
@@ -129,7 +131,7 @@ public class TreeReplace extends AdvancedCommand implements IPlayerTabExecutor {
                                 .ignoreAirBlocks(true)
                                 .build());
                         pasted++;
-                    } catch (Exception e) {
+                    } catch (MaxChangedBlocksException e) {
                         messageSender().sendError(player, "Clipboard paste failed: " + e.getMessage());
                         return;
                     }

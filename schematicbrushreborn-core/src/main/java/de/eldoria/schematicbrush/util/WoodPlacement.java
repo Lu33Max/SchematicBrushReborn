@@ -47,7 +47,7 @@ public final class WoodPlacement {
             return Collections.emptyList();
         }
 
-        var surfacePositions = collectSurfacePositions(editSession, region, validSurfaceBlocks);
+        var surfacePositions = collectSurfacePositions(editSession, region);
         if (surfacePositions.isEmpty()) {
             return Collections.emptyList();
         }
@@ -105,16 +105,10 @@ public final class WoodPlacement {
 
     private static List<BlockVector3> collectSurfacePositions(
             EditSession editSession,
-            Region region,
-            List<String> validSurfaceBlocks) {
+            Region region) {
         Map<Long, BlockVector3> surfacePositions = new HashMap<>();
 
         for (BlockVector3 position : region) {
-            BlockType blockType = editSession.getBlock(position).getBlockType();
-            if (!matchesSurface(blockType, validSurfaceBlocks)) {
-                continue;
-            }
-
             BlockVector3 above = BlockVector3.at(position.x(), position.y() + 1, position.z());
             if (!editSession.getBlock(above).getBlockType().getMaterial().isAir()) {
                 continue;
@@ -128,6 +122,46 @@ public final class WoodPlacement {
         }
 
         return new ArrayList<>(surfacePositions.values());
+    }
+
+    public static boolean isValidSurfacePosition(
+            EditSession editSession,
+            BlockVector3 position,
+            List<String> surfaceBlocks
+    ) {
+        BlockVector3 above = position.add(0, 1, 0);
+        if (!editSession.getBlock(above).getBlockType().getMaterial().isAir()) {
+            return false;
+        }
+        return matchesSurface(editSession.getBlock(position).getBlockType(), surfaceBlocks);
+    }
+
+    /**
+     * Ensure the center position is valid and all eight horizontal neighbors
+     * are valid surfaces as well. For each neighbor, if the neighbor at the
+     * same Y is not valid, one block up or one block down is tried and
+     * accepted if valid.
+     */
+    public static boolean hasAdjacentValidSurface(
+            EditSession editSession,
+            BlockVector3 position,
+            List<String> surfaceBlocks
+    ) {
+        if (!isValidSurfacePosition(editSession, position, surfaceBlocks)) {
+            return false;
+        }
+
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) continue;
+                BlockVector3 neighbor = position.add(dx, 0, dz);
+                if (isValidSurfacePosition(editSession, neighbor, surfaceBlocks)) continue;
+                if (isValidSurfacePosition(editSession, neighbor.add(0, 1, 0), surfaceBlocks)) continue;
+                if (isValidSurfacePosition(editSession, neighbor.add(0, -1, 0), surfaceBlocks)) continue;
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean matchesSurface(BlockType blockType, List<String> surfaceBlocks) {
