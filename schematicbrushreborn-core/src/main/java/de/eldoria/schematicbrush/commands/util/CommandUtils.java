@@ -1,14 +1,14 @@
 package de.eldoria.schematicbrush.commands.util;
 
-import com.sk89q.worldedit.world.block.BlockType;
-import com.sk89q.worldedit.world.block.BlockTypes;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import com.sk89q.worldedit.world.block.BlockType;
+import com.sk89q.worldedit.world.block.BlockTypes;
 
 public final class CommandUtils {
     private static final List<String> BLOCK_TYPE_NAMES = loadBlockTypeNames();
@@ -100,7 +100,7 @@ public final class CommandUtils {
                     .distinct()
                     .sorted()
                     .collect(Collectors.toList());
-        } catch (Throwable t) {
+        } catch (SecurityException t) {
             return Collections.emptyList();
         }
     }

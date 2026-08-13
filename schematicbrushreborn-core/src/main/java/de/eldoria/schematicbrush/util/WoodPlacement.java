@@ -9,19 +9,20 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import org.bukkit.entity.Player;
+
 import com.sk89q.worldedit.EditSession;
+import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.regions.Region;
 import com.sk89q.worldedit.regions.Polygonal2DRegion;
+import com.sk89q.worldedit.regions.Region;
 import com.sk89q.worldedit.world.block.BlockState;
 import com.sk89q.worldedit.world.block.BlockType;
 import com.sk89q.worldedit.world.registry.LegacyMapper;
-import com.sk89q.worldedit.extent.clipboard.Clipboard;
 
 import de.eldoria.schematicbrush.brush.config.selector.PathSelector;
 import de.eldoria.schematicbrush.schematics.Schematic;
 import de.eldoria.schematicbrush.schematics.SchematicRegistry;
-import org.bukkit.entity.Player;
 
 public final class WoodPlacement {
     private static final Random RANDOM = new Random();
@@ -41,8 +42,7 @@ public final class WoodPlacement {
             Region region,
             Set<Schematic> schematics,
             List<String> validSurfaceBlocks,
-            float distance
-    ) throws IOException {
+            float distance) throws IOException {
         if (schematics.isEmpty() || distance <= 0 || !(region instanceof Polygonal2DRegion)) {
             return Collections.emptyList();
         }
@@ -106,8 +106,7 @@ public final class WoodPlacement {
     private static List<BlockVector3> collectSurfacePositions(
             EditSession editSession,
             Region region,
-            List<String> validSurfaceBlocks
-    ) {
+            List<String> validSurfaceBlocks) {
         Map<Long, BlockVector3> surfacePositions = new HashMap<>();
 
         for (BlockVector3 position : region) {
@@ -158,7 +157,8 @@ public final class WoodPlacement {
 
     private static BlockState legacyBlockState(String legacyId) {
         try {
-            int id = legacyId.contains(":") ? Integer.parseInt(legacyId.substring(0, legacyId.indexOf(':'))) : Integer.parseInt(legacyId);
+            int id = legacyId.contains(":") ? Integer.parseInt(legacyId.substring(0, legacyId.indexOf(':')))
+                    : Integer.parseInt(legacyId);
             int data = 0;
             if (legacyId.contains(":")) {
                 data = Integer.parseInt(legacyId.substring(legacyId.indexOf(':') + 1));
@@ -173,8 +173,7 @@ public final class WoodPlacement {
             EditSession editSession,
             Region region,
             Set<Schematic> schematics,
-            List<String> validBlocks
-    ) throws IOException {
+            List<String> validBlocks) throws IOException {
         if (schematics.isEmpty() || !(region instanceof Polygonal2DRegion)) {
             return Collections.emptyList();
         }
@@ -191,25 +190,26 @@ public final class WoodPlacement {
     }
 
     private static BlockVector3 findValidPosition(List<BlockVector3> surfacePositions, int x, int z, Region region) {
-        // try the exact coordinate first, then neighbor ring
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                var candidate = getPosition(surfacePositions, x + dx, z + dz);
-                if (candidate != null && region.contains(candidate)) {
-                    return candidate;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static BlockVector3 getPosition(List<BlockVector3> surfacePositions, int x, int z) {
+        // Find the closest candidate position within the region. Returning
+        // the nearest available position (even if farther than the original
+        // search radius) allows the sampler to jump across invalid gaps; the
+        // surface material is validated later when placing the schematic.
+        BlockVector3 closest = null;
+        double bestDistanceSq = Double.MAX_VALUE;
         for (BlockVector3 position : surfacePositions) {
-            if (position.x() == x && position.z() == z) {
-                return position;
+            if (!region.contains(position)) {
+                continue;
+            }
+            double dx = position.x() - x;
+            double dz = position.z() - z;
+            double distanceSq = dx * dx + dz * dz;
+            if (distanceSq < bestDistanceSq) {
+                bestDistanceSq = distanceSq;
+                closest = position;
             }
         }
-        return null;
+
+        return closest;
     }
 
     private static boolean isValidPoint(
@@ -217,8 +217,7 @@ public final class WoodPlacement {
             BlockVector3 minimumPoint,
             float cellSize,
             Site[][] grid,
-            float distance
-    ) {
+            float distance) {
         int xIndex = (int) Math.floor((position.x() - minimumPoint.x()) / cellSize);
         int zIndex = (int) Math.floor((position.z() - minimumPoint.z()) / cellSize);
         if (xIndex < 0 || zIndex < 0 || xIndex >= grid.length || zIndex >= grid[0].length) {

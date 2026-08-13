@@ -50,8 +50,7 @@ public class Wood extends AdvancedCommand implements IPlayerTabExecutor {
     public void onCommand(
             @NotNull Player player,
             @NotNull String alias,
-            @NotNull Arguments args
-    ) throws CommandException {
+            @NotNull Arguments args) throws CommandException {
         if (args.size() < 2) {
             messageSender().sendError(player, "Usage: /wood <path> <valid surface blocks> [distance]");
             return;
@@ -113,7 +112,8 @@ public class Wood extends AdvancedCommand implements IPlayerTabExecutor {
                 .actor(BukkitAdapter.adapt(player))
                 .build()) {
             editSession.setMask(localSession.getMask());
-            List<WoodPlacement.Site> sites = WoodPlacement.sampleTrees(editSession, region, schematics, surfaceBlocks, distance);
+            List<WoodPlacement.Site> sites = WoodPlacement.sampleTrees(editSession, region, schematics, surfaceBlocks,
+                    distance);
 
             if (sites.isEmpty()) {
                 messageSender().sendError(player, "No valid tree positions found in selection.");
@@ -151,8 +151,7 @@ public class Wood extends AdvancedCommand implements IPlayerTabExecutor {
     public @Nullable List<String> onTabComplete(
             @NotNull Player player,
             @NotNull String alias,
-            @NotNull Arguments args
-    ) {
+            @NotNull Arguments args) {
         if (args.size() == 1) {
             String directory = args.asString(0);
             if (directory.startsWith("$")) {
