@@ -47,7 +47,7 @@ public final class WoodPlacement {
             return Collections.emptyList();
         }
 
-        var surfacePositions = collectSurfacePositions(editSession, region);
+        var surfacePositions = collectSurfacePositions(editSession, region, validSurfaceBlocks);
         if (surfacePositions.isEmpty()) {
             return Collections.emptyList();
         }
@@ -105,10 +105,16 @@ public final class WoodPlacement {
 
     private static List<BlockVector3> collectSurfacePositions(
             EditSession editSession,
-            Region region) {
+            Region region,
+            List<String> validSurfaceBlocks) {
         Map<Long, BlockVector3> surfacePositions = new HashMap<>();
 
         for (BlockVector3 position : region) {
+            BlockType blockType = editSession.getBlock(position).getBlockType();
+            if (validSurfaceBlocks != null && !matchesSurface(blockType, validSurfaceBlocks)) {
+                continue;
+            }
+
             BlockVector3 above = BlockVector3.at(position.x(), position.y() + 1, position.z());
             if (!editSession.getBlock(above).getBlockType().getMaterial().isAir()) {
                 continue;
