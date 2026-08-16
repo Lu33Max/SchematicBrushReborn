@@ -23,6 +23,8 @@ import com.sk89q.worldedit.math.transform.AffineTransform;
 import com.sk89q.worldedit.regions.Polygonal2DRegion;
 import com.sk89q.worldedit.regions.Region;
 import com.sk89q.worldedit.session.ClipboardHolder;
+import com.sk89q.worldedit.world.block.BlockType;
+import com.sk89q.worldedit.world.block.BlockTypes;
 
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -63,7 +65,8 @@ public class TreeReplace extends AdvancedCommand implements IPlayerTabExecutor {
 
         String path = CommandUtils.stripDollar(args.asString(0));
         List<String> blocks = CommandUtils.parseBlockNames(args.asString(1));
-        if (!validateLegacyBlockIds(player, blocks)) {
+        
+        if (!validateReplaceBlocks(player, blocks)) {
             return;
         }
 
@@ -174,20 +177,38 @@ public class TreeReplace extends AdvancedCommand implements IPlayerTabExecutor {
         return Collections.emptyList();
     }
 
-    private boolean validateLegacyBlockIds(@NotNull Player player, List<String> blocks) {
-        for (String block : blocks) {
-            if (block.isEmpty()) {
+    private boolean validateReplaceBlocks(@NotNull Player player, List<String> surfaceBlocks) {
+        for (String block : surfaceBlocks) {
+            if (block == null || block.isBlank()) {
                 continue;
             }
-            if (CommandUtils.isLegacyId(block)) {
+
+            String normalized = block.trim().toLowerCase(Locale.ROOT);
+
+            if (CommandUtils.isLegacyId(normalized)) {
                 try {
-                    CommandUtils.parseLegacyId(block);
+                    CommandUtils.parseLegacyId(normalized);
                 } catch (NumberFormatException e) {
                     messageSender().sendError(player, "Invalid legacy block id: " + block);
                     return false;
                 }
+
+                continue;
+            }
+
+            String blockId = normalized;
+            if (!blockId.contains(":")) {
+                blockId = "minecraft:" + blockId;
+            }
+
+            BlockType blockType = BlockTypes.get(blockId);
+
+            if (blockType == null) {
+                messageSender().sendError(player, "Unknown block type: " + block);
+                return false;
             }
         }
+
         return true;
     }
 
