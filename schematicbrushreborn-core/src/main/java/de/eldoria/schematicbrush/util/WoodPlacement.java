@@ -25,9 +25,7 @@ import de.eldoria.schematicbrush.schematics.Schematic;
 import de.eldoria.schematicbrush.schematics.SchematicRegistry;
 
 public final class WoodPlacement {
-
     private static final Random RANDOM = new Random();
-
     private static final int MAX_TRIES = 30;
 
     private WoodPlacement() {
@@ -73,32 +71,27 @@ public final class WoodPlacement {
 
         /*
          * Surface positions remain spatially indexed by X/Z.
-         *
-         * There is intentionally NO fallback to the nearest surface.
-         *
-         * A candidate either has a valid surface at exactly this X/Z
-         * position or it does not.
          */
         Map<Long, BlockVector3> surfacePositions =
-                collectSurfacePositions(
-                        editSession,
-                        region,
-                        validSurfaceBlocks
-                );
+            collectSurfacePositions(
+                editSession,
+                region,
+                validSurfaceBlocks
+            );
 
         if (surfacePositions.isEmpty()) {
             return Collections.emptyList();
         }
 
-        int width =
-                region.getMaximumPoint().x()
-                        - region.getMinimumPoint().x()
-                        + 1;
+        int width = 
+            region.getMaximumPoint().x()
+                - region.getMinimumPoint().x()
+                + 1;
 
         int length =
-                region.getMaximumPoint().z()
-                        - region.getMinimumPoint().z()
-                        + 1;
+            region.getMaximumPoint().z()
+                - region.getMinimumPoint().z()
+                + 1;
 
         /*
          * Poisson-disc grid.
@@ -106,73 +99,32 @@ public final class WoodPlacement {
          * distance / sqrt(2) allows a 3x3 neighborhood to contain
          * all possible points that could be closer than 'distance'.
          */
-        float cellSize =
-                distance / (float) Math.sqrt(2.0);
+        float cellSize = distance / (float) Math.sqrt(2.0);
 
-        int cellsWidth =
-                Math.max(
-                        1,
-                        (int) Math.ceil(width / cellSize)
-                );
+        int cellsWidth = Math.max(1, (int) Math.ceil(width / cellSize));
+        int cellsLength = Math.max(1, (int) Math.ceil(length / cellSize));
 
-        int cellsLength =
-                Math.max(
-                        1,
-                        (int) Math.ceil(length / cellSize)
-                );
+        SamplePoint[][] grid = new SamplePoint[cellsWidth][cellsLength];
+        List<Site> points = new ArrayList<>();
 
-        /*
-         * The grid now contains SamplePoints instead of Sites.
-         *
-         * This is important because invalid terrain still needs to
-         * participate in the geometric sampling.
-         */
-        SamplePoint[][] grid =
-                new SamplePoint[cellsWidth][cellsLength];
+        // Active points are geometric sampling points. They can represent valid or invalid terrain.
+        List<SamplePoint> active = new ArrayList<>();
 
-        /*
-         * Only actual trees are returned to the caller.
-         */
-        List<Site> points =
-                new ArrayList<>();
-
-        /*
-         * Active points are geometric sampling points.
-         *
-         * They can represent valid or invalid terrain.
-         */
-        List<SamplePoint> active =
-                new ArrayList<>();
-
-        /*
-         * Pick the initial position directly from the valid surface map.
-         *
-         * The first position is guaranteed to be placeable.
-         */
-        BlockVector3 firstPosition =
-                randomSurfacePosition(surfacePositions);
+        //Pick the initial position directly from the valid surface map.
+        BlockVector3 firstPosition = randomSurfacePosition(surfacePositions);
 
         if (firstPosition == null) {
             return Collections.emptyList();
         }
 
-        Site firstSite =
-                createSite(
-                        firstPosition,
-                        schematics
-                );
-
-        SamplePoint firstPoint =
-                new SamplePoint(
-                        firstPosition,
-                        firstSite
-                );
+        Site firstSite = createSite(firstPosition, schematics);
+        SamplePoint firstPoint = new SamplePoint(firstPosition, firstSite);
 
         insertPoint(
-                grid,
-                region.getMinimumPoint(),
-                cellSize,
-                firstPoint
+            grid,
+            region.getMinimumPoint(),
+            cellSize,
+            firstPoint
         );
 
         points.add(firstSite);
@@ -182,63 +134,27 @@ public final class WoodPlacement {
          * Poisson-disc sampling.
          */
         while (!active.isEmpty()) {
+            int index = RANDOM.nextInt(active.size());
+            SamplePoint sample =active.get(index);
 
-            int index =
-                    RANDOM.nextInt(active.size());
-
-            SamplePoint sample =
-                    active.get(index);
-
-            boolean added =
-                    false;
+            boolean added = false;
 
             for (int attempt = 0;
                  attempt < MAX_TRIES;
                  attempt++) {
 
-                /*
-                 * Generate a new point around the active point.
-                 *
-                 * The radius is between:
-                 *
-                 *     distance
-                 *     2 * distance
-                 */
-                double theta =
-                        RANDOM.nextDouble()
-                                * Math.PI
-                                * 2.0;
+                double theta = RANDOM.nextDouble() * Math.PI * 2.0;
+                double radius = distance + RANDOM.nextDouble() * distance;
 
-                double radius =
-                        distance
-                                + RANDOM.nextDouble()
-                                * distance;
+                int x = (int) Math.round(
+                        sample.position().x() + radius* Math.cos(theta)
+                    );
 
-                int x =
-                        (int) Math.round(
-                                sample.position().x()
-                                        + radius
-                                        * Math.cos(theta)
-                        );
+                int z = (int) Math.round(
+                        sample.position().z() + radius * Math.sin(theta)
+                    );
 
-                int z =
-                        (int) Math.round(
-                                sample.position().z()
-                                        + radius
-                                        * Math.sin(theta)
-                        );
-
-                /*
-                 * First make sure the geometric candidate is inside
-                 * the selection's X/Z bounds.
-                 *
-                 * We deliberately do NOT require a valid surface here.
-                 */
-                if (!isInsideRegionXZ(
-                        x,
-                        z,
-                        region)) {
-
+                if (!isInsideRegionXZ(x, z, region)) {
                     continue;
                 }
 
@@ -248,12 +164,7 @@ public final class WoodPlacement {
                  *
                  * This includes points on invalid terrain.
                  */
-                BlockVector3 candidatePosition =
-                        BlockVector3.at(
-                                x,
-                                sample.position().y(),
-                                z
-                        );
+                BlockVector3 candidatePosition = BlockVector3.at(x, sample.position().y(), z);
 
                 if (!isValidPoint(
                         candidatePosition,
@@ -268,49 +179,25 @@ public final class WoodPlacement {
                 /*
                  * Now determine whether the candidate can actually
                  * receive a tree.
-                 *
-                 * IMPORTANT:
-                 *
-                 * This lookup does NOT move the candidate to another
-                 * position. It only checks the exact X/Z coordinate.
                  */
-                BlockVector3 surface =
-                        surfacePositions.get(
-                                key(x, z)
-                        );
-
-                Site site =
-                        null;
+                BlockVector3 surface = surfacePositions.get(key(x, z));
+                Site site = null;
 
                 if (surface != null) {
-
-                    site =
-                            createSite(
-                                    surface,
-                                    schematics
-                            );
-
+                    site = createSite(surface, schematics);
                     points.add(site);
                 }
 
                 /*
                  * The SamplePoint is inserted regardless of whether
                  * a Site could be created.
-                 *
-                 * This is the core change that allows the algorithm
-                 * to continue through invalid areas.
                  */
-                SamplePoint next =
-                        new SamplePoint(
-                                candidatePosition,
-                                site
-                        );
-
+                SamplePoint next = new SamplePoint( candidatePosition, site);
                 insertPoint(
-                        grid,
-                        region.getMinimumPoint(),
-                        cellSize,
-                        next
+                    grid,
+                    region.getMinimumPoint(),
+                    cellSize,
+                    next
                 );
 
                 active.add(next);
@@ -320,20 +207,9 @@ public final class WoodPlacement {
             }
 
             if (!added) {
+                int lastIndex = active.size() - 1;
 
-                /*
-                 * The order of active points does not matter.
-                 *
-                 * Swap with the last element to make removal O(1).
-                 */
-                int lastIndex =
-                        active.size() - 1;
-
-                active.set(
-                        index,
-                        active.get(lastIndex)
-                );
-
+                active.set(index,active.get(lastIndex));
                 active.remove(lastIndex);
             }
         }
@@ -343,123 +219,165 @@ public final class WoodPlacement {
 
     /**
      * Collects the highest valid surface position for every X/Z column.
-     *
      * The map contains exactly one possible surface position per X/Z.
      */
     private static Map<Long, BlockVector3> collectSurfacePositions(
-        EditSession editSession,
-        Region region,
-        List<String> validSurfaceBlocks) {
+            EditSession editSession,
+            Region region,
+            List<String> validSurfaceBlocks) {
 
-    if (!(region instanceof Polygonal2DRegion polygon)) {
-        return Collections.emptyMap();
-    }
+        if (!(region instanceof Polygonal2DRegion polygon)) {
+            return Collections.emptyMap();
+        }
 
-    Map<Long, BlockVector3> surfacePositions =
-            new HashMap<>();
+        SurfaceMatcher matcher = createSurfaceMatcher(validSurfaceBlocks);
 
-    BlockVector3 minimum =
-            polygon.getMinimumPoint();
+        if (matcher.isEmpty()) {
+            return Collections.emptyMap();
+        }
 
-    BlockVector3 maximum =
-            polygon.getMaximumPoint();
+        Map<Long, BlockVector3> surfacePositions =new HashMap<>();
 
-    int minY = minimum.y();
-    int maxY = maximum.y();
+        int minY = polygon.getMinimumPoint().y();
+        int maxY = polygon.getMaximumPoint().y();
 
-    /*
-     * Polygonal2DRegion.asFlatRegion() iterates only over the X/Z
-     * columns of the polygon instead of every block in the 3D region.
-     *
-     * This is the important performance optimization.
-     */
-    for (var column : polygon.asFlatRegion()) {
-
-        int x = column.x();
-        int z = column.z();
-
-        /*
-         * Search from the top of the selection downward.
-         *
-         * The first valid block with air above it is the surface
-         * for this X/Z column.
-         */
-        for (int y = maxY; y >= minY; y--) {
-
-            BlockVector3 position =
-                    BlockVector3.at(
-                            x,
-                            y,
-                            z
-                    );
-
-            BlockType blockType =
-                    editSession
-                            .getBlock(position)
-                            .getBlockType();
-
-            if (!matchesSurface(
-                    blockType,
-                    validSurfaceBlocks)) {
-
-                continue;
-            }
-
-            BlockVector3 above =
-                    BlockVector3.at(
-                            x,
-                            y + 1,
-                            z
-                    );
-
-            if (!editSession
-                    .getBlock(above)
-                    .getBlockType()
-                    .getMaterial()
-                    .isAir()) {
-
-                continue;
-            }
+        for (var column : polygon.asFlatRegion()) {
+            int x = column.x();
+            int z = column.z();
 
             /*
-             * We found the highest valid surface for this X/Z.
-             * Nothing further down the column needs to be checked.
-             */
-            surfacePositions.put(
-                    key(x, z),
-                    position
-            );
+            * Search from the top of the selection downward.
+            * The first valid block with air above it is the highest usable surface for this X/Z column.
+            */
+            for (int y = maxY; y >= minY; y--) {
+                BlockVector3 position = BlockVector3.at(x, y, z);
+                BlockType blockType = editSession.getBlock(position).getBlockType();
 
-            break;
+                if (!matchesSurface(blockType, matcher)) {
+                    continue;
+                }
+
+                BlockVector3 above = BlockVector3.at(x, y + 1, z);
+
+                if (!editSession.getBlock(above).getBlockType().getMaterial().isAir()) {
+                    continue;
+                }
+
+                surfacePositions.put(key(x, z), position);
+                break;
+            }
         }
+
+        return surfacePositions;
     }
 
-    return surfacePositions;
-}
+    private static SurfaceMatcher createSurfaceMatcher(
+        List<String> surfaceBlocks) {
+
+        if (surfaceBlocks == null || surfaceBlocks.isEmpty()) {
+            return SurfaceMatcher.EMPTY;
+        }
+
+        Set<String> fullIds = new java.util.HashSet<>();
+        Set<String> simpleIds = new java.util.HashSet<>();
+
+        for (String block : surfaceBlocks) {
+            if (block == null) {
+                continue;
+            }
+
+            String normalized = block.trim().toLowerCase();
+            if (normalized.isEmpty()) {
+                continue;
+            }
+
+            // Legacy IDs such as: 2, 35:5
+            if (isLegacyId(normalized)) {
+                BlockState legacyState = legacyBlockState(normalized);
+                if (legacyState == null) {
+                    continue;
+                }
+
+                String id = legacyState.getBlockType().id().toLowerCase();
+                fullIds.add(id);
+
+                int separator = id.indexOf(':');
+                if (separator >= 0 && separator + 1 < id.length()) {
+                    simpleIds.add(
+                        id.substring(separator + 1)
+                    );
+                }
+
+                continue;
+            }
+
+            // Namespace-qualified IDs: minecraft:grass_block
+            if (normalized.indexOf(':') >= 0) {
+                fullIds.add(normalized);
+
+                int separator = normalized.indexOf(':');
+                if (separator + 1 < normalized.length()) {
+                    simpleIds.add(
+                        normalized.substring(separator + 1)
+                    );
+                }
+
+            } else {
+                // Simple IDs: grass_block
+                simpleIds.add(normalized);
+            }
+        }
+
+        return new SurfaceMatcher(
+            Set.copyOf(fullIds),
+            Set.copyOf(simpleIds)
+        );
+    }
 
     public static boolean isValidSurfacePosition(
             EditSession editSession,
             BlockVector3 position,
             List<String> surfaceBlocks) {
 
-        BlockVector3 above =
-                position.add(0, 1, 0);
+        SurfaceMatcher matcher =
+                createSurfaceMatcher(surfaceBlocks);
 
-        if (!editSession
-                .getBlock(above)
-                .getBlockType()
-                .getMaterial()
-                .isAir()) {
+        return isValidSurfacePosition(
+                editSession,
+                position,
+                matcher
+        );
+    }
+
+    private static boolean isValidSurfacePosition(
+            EditSession editSession,
+            BlockVector3 position,
+            SurfaceMatcher matcher) {
+
+        if (matcher.isEmpty()) {
+            return false;
+        }
+
+        BlockType blockType =
+                editSession
+                        .getBlock(position)
+                        .getBlockType();
+
+        if (!matchesSurface(
+                blockType,
+                matcher)) {
 
             return false;
         }
 
-        return matchesSurface(
-                editSession
-                        .getBlock(position)
-                        .getBlockType(),
-                surfaceBlocks
-        );
+        BlockVector3 above =
+                position.add(0, 1, 0);
+
+        return editSession
+                .getBlock(above)
+                .getBlockType()
+                .getMaterial()
+                .isAir();
     }
 
     /**
@@ -473,50 +391,49 @@ public final class WoodPlacement {
      * 3. one block below
      */
     public static boolean hasAdjacentValidSurface(
-            EditSession editSession,
-            BlockVector3 position,
-            List<String> surfaceBlocks) {
+        EditSession editSession,
+        BlockVector3 position,
+        List<String> surfaceBlocks) {
+
+        SurfaceMatcher matcher =
+                createSurfaceMatcher(surfaceBlocks);
+
+        return hasAdjacentValidSurface(
+                editSession,
+                position,
+                matcher
+        );
+    }
+
+    private static boolean hasAdjacentValidSurface(
+        EditSession editSession,
+        BlockVector3 position,
+        SurfaceMatcher matcher) {
 
         if (!isValidSurfacePosition(
                 editSession,
                 position,
-                surfaceBlocks)) {
+                matcher)) {
 
             return false;
         }
 
         for (int dx = -1; dx <= 1; dx++) {
-
             for (int dz = -1; dz <= 1; dz++) {
 
                 if (dx == 0 && dz == 0) {
                     continue;
                 }
 
-                BlockVector3 neighbor =
-                        position.add(dx, 0, dz);
+                BlockVector3 neighbor = position.add(dx, 0, dz);
 
-                if (isValidSurfacePosition(
-                        editSession,
-                        neighbor,
-                        surfaceBlocks)) {
-
+                if (isValidSurfacePosition(editSession, neighbor, matcher)) {
                     continue;
                 }
-
-                if (isValidSurfacePosition(
-                        editSession,
-                        neighbor.add(0, 1, 0),
-                        surfaceBlocks)) {
-
+                if (isValidSurfacePosition(editSession, neighbor.add(0, 1, 0), matcher)) {
                     continue;
                 }
-
-                if (isValidSurfacePosition(
-                        editSession,
-                        neighbor.add(0, -1, 0),
-                        surfaceBlocks)) {
-
+                if (isValidSurfacePosition(editSession, neighbor.add(0, -1, 0), matcher)) {
                     continue;
                 }
 
@@ -528,116 +445,71 @@ public final class WoodPlacement {
     }
 
     private static boolean matchesSurface(
-            BlockType blockType,
-            List<String> surfaceBlocks) {
+        BlockType blockType,
+        SurfaceMatcher matcher) {
 
-        if (surfaceBlocks == null
-                || surfaceBlocks.isEmpty()) {
-
+        if (blockType == null || matcher.isEmpty()) {
             return false;
         }
 
-        String id =
-                blockType.id().toLowerCase();
+        String id = blockType.id().toLowerCase();
 
-        String simple =
-                id.contains(":")
-                        ? id.substring(
-                                id.indexOf(':') + 1
-                        )
-                        : id;
-
-        for (String block : surfaceBlocks) {
-
-            if (block == null || block.isEmpty()) {
-                continue;
-            }
-
-            String normalized =
-                    block.toLowerCase();
-
-            if (isLegacyId(normalized)) {
-
-                BlockState legacyState =
-                        legacyBlockState(normalized);
-
-                if (legacyState != null
-                        && legacyState
-                                .getBlockType()
-                                .id()
-                                .equals(id)) {
-
-                    return true;
-                }
-            }
-
-            if (simple.equals(normalized)
-                    || id.equals(normalized)
-                    || id.endsWith(
-                            ":" + normalized)) {
-
-                return true;
-            }
+        if (matcher.fullIds().contains(id)) {
+            return true;
         }
 
-        return false;
+        int separator = id.indexOf(':');
+        if (separator >= 0 && separator + 1 < id.length()) {
+            return matcher.simpleIds().contains(
+                    id.substring(separator + 1)
+            );
+        }
+
+        return matcher.simpleIds().contains(id);
     }
 
-    private static boolean isLegacyId(
-            String block) {
-
+    private static boolean isLegacyId(String block) {
         return block.matches(
                 "^[0-9]+(:[0-9]+)?$"
         );
     }
 
-    private static BlockState legacyBlockState(
-            String legacyId) {
-
+    private static BlockState legacyBlockState(String legacyId) {
         try {
-
             int id =
-                    legacyId.contains(":")
-                            ? Integer.parseInt(
-                                    legacyId.substring(
-                                            0,
-                                            legacyId.indexOf(':')
-                                    )
-                            )
-                            : Integer.parseInt(
-                                    legacyId
-                            );
+                legacyId.contains(":")
+                    ? Integer.parseInt(
+                        legacyId.substring(
+                            0,
+                            legacyId.indexOf(':')
+                        )
+                    )
+                    : Integer.parseInt(
+                        legacyId
+                    );
 
             int data = 0;
 
             if (legacyId.contains(":")) {
-
                 data =
-                        Integer.parseInt(
-                                legacyId.substring(
-                                        legacyId.indexOf(':') + 1
-                                )
-                        );
+                    Integer.parseInt(
+                        legacyId.substring(
+                            legacyId.indexOf(':') + 1
+                        )
+                    );
             }
 
-            return LegacyMapper
-                    .getInstance()
-                    .getBlockFromLegacy(
-                            id,
-                            data
-                    );
-
+            return LegacyMapper.getInstance().getBlockFromLegacy(id, data);
         } catch (NumberFormatException e) {
-
             return null;
         }
     }
 
     public static List<Site> replaceTrees(
-            EditSession editSession,
-            Region region,
-            Set<Schematic> schematics,
-            List<String> validBlocks) throws IOException {
+        EditSession editSession,
+        Region region,
+        Set<Schematic> schematics,
+        List<String> validBlocks) throws IOException {
 
         if (schematics.isEmpty()
                 || !(region instanceof Polygonal2DRegion)) {
@@ -645,35 +517,22 @@ public final class WoodPlacement {
             return Collections.emptyList();
         }
 
-        List<Site> sites =
-                new ArrayList<>();
+        SurfaceMatcher matcher = createSurfaceMatcher(validBlocks);
 
-        /*
-         * No Clipboard cache here.
-         *
-         * FAWE's DiskOptimizedClipboard must not be treated as a
-         * permanently reusable Clipboard instance.
-         */
+        if (matcher.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Site> sites = new ArrayList<>();
+
         for (BlockVector3 position : region) {
+            BlockType blockType = editSession.getBlock(position).getBlockType();
 
-            BlockType blockType =
-                    editSession
-                            .getBlock(position)
-                            .getBlockType();
-
-            if (!matchesSurface(
-                    blockType,
-                    validBlocks)) {
-
+            if (!matchesSurface(blockType, matcher)) {
                 continue;
             }
 
-            sites.add(
-                    createSite(
-                            position,
-                            schematics
-                    )
-            );
+            sites.add(createSite( position, schematics));
         }
 
         return sites;
@@ -686,15 +545,12 @@ public final class WoodPlacement {
      * itself happens in the horizontal plane.
      */
     private static boolean isInsideRegionXZ(
-            int x,
-            int z,
-            Region region) {
+        int x,
+        int z,
+        Region region) {
 
-        BlockVector3 min =
-                region.getMinimumPoint();
-
-        BlockVector3 max =
-                region.getMaximumPoint();
+        BlockVector3 min = region.getMinimumPoint();
+        BlockVector3 max = region.getMaximumPoint();
 
         return x >= min.x()
                 && x <= max.x()
@@ -710,11 +566,11 @@ public final class WoodPlacement {
      * tree positions.
      */
     private static boolean isValidPoint(
-            BlockVector3 position,
-            BlockVector3 minimumPoint,
-            float cellSize,
-            SamplePoint[][] grid,
-            float distance) {
+        BlockVector3 position,
+        BlockVector3 minimumPoint,
+        float cellSize,
+        SamplePoint[][] grid,
+        float distance) {
 
         int xIndex =
                 (int) Math.floor(
@@ -784,11 +640,6 @@ public final class WoodPlacement {
                         (long) neighbor.position().z()
                                 - position.z();
 
-                /*
-                 * Compare squared distances.
-                 *
-                 * Math.sqrt() is deliberately avoided.
-                 */
                 if (dx * dx + dz * dz < distanceSq) {
                     return false;
                 }
@@ -826,8 +677,7 @@ public final class WoodPlacement {
             return;
         }
 
-        grid[xIndex][zIndex] =
-                point;
+        grid[xIndex][zIndex] = point;
     }
 
     private static Site createSite(
@@ -835,11 +685,8 @@ public final class WoodPlacement {
             Set<Schematic> schematics)
             throws IOException {
 
-        Schematic schematic =
-                randomSchematic(schematics);
-
-        Clipboard clipboard =
-                schematic.loadSchematic();
+        Schematic schematic = randomSchematic(schematics);
+        Clipboard clipboard = schematic.loadSchematic();
 
         return new Site(
                 position,
@@ -850,11 +697,7 @@ public final class WoodPlacement {
     private static Schematic randomSchematic(
             Set<Schematic> schematics) {
 
-        int index =
-                RANDOM.nextInt(
-                        schematics.size()
-                );
-
+        int index = RANDOM.nextInt(schematics.size());
         int i = 0;
 
         for (Schematic schematic : schematics) {
@@ -877,9 +720,9 @@ public final class WoodPlacement {
         }
 
         int index =
-                RANDOM.nextInt(
-                        surfacePositions.size()
-                );
+            RANDOM.nextInt(
+                surfacePositions.size()
+            );
 
         int i = 0;
 
@@ -906,9 +749,7 @@ public final class WoodPlacement {
 
     /**
      * A geometric sampling point.
-     *
      * 'site' is null when the position is not a valid surface.
-     *
      * Such points still participate in the Poisson-disc distribution.
      */
     private record SamplePoint(
@@ -922,5 +763,21 @@ public final class WoodPlacement {
     public record Site(
             BlockVector3 position,
             Clipboard clipboard) {
+    }
+
+    private record SurfaceMatcher(
+        Set<String> fullIds,
+        Set<String> simpleIds) {
+
+        private static final SurfaceMatcher EMPTY =
+                new SurfaceMatcher(
+                        Collections.emptySet(),
+                        Collections.emptySet()
+                );
+
+        private boolean isEmpty() {
+            return fullIds.isEmpty()
+                    && simpleIds.isEmpty();
+        }
     }
 }
