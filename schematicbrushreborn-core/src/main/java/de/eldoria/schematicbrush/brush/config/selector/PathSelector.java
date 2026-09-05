@@ -55,26 +55,27 @@ public class PathSelector extends BaseSelector {
                         .getSchematicsByName(player, term() == null ? "*" : term());
 
         return schematics.stream()
-                .filter(schematic -> matchesPath(schematic.directory()))
+                .filter(schematic -> matchesPath(schematic.directory(), schematic.name()))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     // check the given relative path of a schematic against this selectors directory pattern
-    private boolean matchesPath(String schematicPath) {
+    private boolean matchesPath(String schematicPath, String schematicName) {
         String[] selectorParts = path.split("/");
-        String[] schematicParts = schematicPath.split("/");
+        String[] directoryParts = schematicPath.isBlank() ? new String[0] : schematicPath.split("/");
 
-        if (selectorParts.length > schematicParts.length) {
+        if (selectorParts.length > directoryParts.length + 1) {
             return false;
         }
 
-        for (int i = 0; i < selectorParts.length; i++) {
-            if (!matchesSegment(selectorParts[i], schematicParts[i])) {
+        for (int i = 0; i < Math.min(selectorParts.length, directoryParts.length); i++) {
+            if (!matchesSegment(selectorParts[i], directoryParts[i])) {
                 return false;
             }
         }
 
-        return true;
+        return selectorParts.length <= directoryParts.length
+            || matchesSegment(selectorParts[selectorParts.length - 1], schematicName);
     }
 
     private boolean matchesSegment(String selector, String value) {

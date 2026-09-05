@@ -412,24 +412,24 @@ public class SchematicBrushCache implements SchematicCache {
      * options for tab completion.
      * 
      * @param input Path inputted by the player
-     * @param limit amount of returned directories
+     * @param limit amount of returned path segments
      */
     @Override
     public List<String> getMatchingPatternDirectories(Player player, String input, int limit) {
         assertReady(player);
 
-        // return the folders of highest level in case of empty input
-        if (input == null || input.isBlank()) {
-            return getMatchingDirectories(player, "", limit);
-        }
-
         Set<String> candidates = new TreeSet<>();
+
+        if (input == null) {
+            input = "";
+        }
 
         collectNextPatternSegments(
                 candidates,
                 schematicsCache.keySet(),
                 input
         );
+        collectNextPatternSegments(candidates, schematicsCache, input);
 
         if (userCache.containsKey(player.getUniqueId())) {
             collectNextPatternSegments(
@@ -437,6 +437,7 @@ public class SchematicBrushCache implements SchematicCache {
                     userCache.get(player.getUniqueId()).keySet(),
                     input
             );
+                    collectNextPatternSegments(candidates, userCache.get(player.getUniqueId()), input);
         }
 
         return buildPatternCompletions(input, candidates)
@@ -459,11 +460,11 @@ public class SchematicBrushCache implements SchematicCache {
                 ? new String[0]
                 : input.split("/");
 
-        int depth = endsWithSeparator
-                ? inputParts.length
-                : inputParts.length - 1;
+        int depth = endsWithSeparator || input.isBlank()
+            ? inputParts.length
+            : inputParts.length - 1;
 
-        String currentSegment = endsWithSeparator
+        String currentSegment = endsWithSeparator || input.isBlank()
                 ? ""
                 : inputParts[inputParts.length - 1];
 
@@ -495,6 +496,20 @@ public class SchematicBrushCache implements SchematicCache {
             }
 
             result.add(next);
+        }
+    }
+
+    private void collectNextPatternSegments(
+            Set<String> result,
+            Map<String, Set<Schematic>> schematicDirectories,
+            String input) {
+        for (var entry : schematicDirectories.entrySet()) {
+            for (var schematic : entry.getValue()) {
+                var path = entry.getKey().isBlank()
+                        ? schematic.name()
+                        : entry.getKey() + "/" + schematic.name();
+                collectNextPatternSegments(result, List.of(path), input);
+            }
         }
     }
 
