@@ -7,6 +7,14 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.bukkit.entity.Player;
+
+import com.sk89q.worldedit.EditSession;
+import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.extension.input.InputParseException;
+import com.sk89q.worldedit.extension.input.ParserContext;
+import com.sk89q.worldedit.function.mask.Mask;
 import com.sk89q.worldedit.world.block.BlockType;
 import com.sk89q.worldedit.world.block.BlockTypes;
 
@@ -77,6 +85,33 @@ public final class CommandUtils {
 
     public static String stripDollar(String path) {
         return path.startsWith("$") ? path.substring(1) : path;
+    }
+
+    public static Mask parseMask(Player player, EditSession editSession, String input)
+            throws InputParseException {
+        ParserContext parserContext = createParserContext(player, editSession);
+        return WorldEdit.getInstance().getMaskFactory().parseFromInput(input, parserContext);
+    }
+
+    public static List<String> completeMask(Player player, String input) {
+        ParserContext parserContext = createParserContext(player, null);
+        return WorldEdit.getInstance().getMaskFactory().getSuggestions(input, parserContext);
+    }
+
+    private static ParserContext createParserContext(Player player, EditSession editSession) {
+        var actor = BukkitAdapter.adapt(player);
+        var world = BukkitAdapter.adapt(player.getWorld());
+        var parserContext = new ParserContext();
+        parserContext.setActor(actor);
+        parserContext.setWorld(world);
+        parserContext.setRestricted(false);
+        parserContext.setPreferringWildcard(false);
+        parserContext.setTryLegacy(true);
+        if (editSession != null) {
+            parserContext.setExtent(editSession);
+            parserContext.setWorld(editSession.getWorld());
+        }
+        return parserContext;
     }
 
     private static List<String> loadBlockTypeNames() {

@@ -18,13 +18,13 @@ import com.sk89q.worldedit.LocalSession;
 import com.sk89q.worldedit.MaxChangedBlocksException;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.extension.input.InputParseException;
+import com.sk89q.worldedit.function.mask.Mask;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.transform.AffineTransform;
 import com.sk89q.worldedit.regions.Polygonal2DRegion;
 import com.sk89q.worldedit.regions.Region;
 import com.sk89q.worldedit.session.ClipboardHolder;
-import com.sk89q.worldedit.world.block.BlockType;
-import com.sk89q.worldedit.world.block.BlockTypes;
 
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -59,16 +59,12 @@ public class Wood extends AdvancedCommand implements IPlayerTabExecutor {
             @NotNull String alias,
             @NotNull Arguments args) throws CommandException {
         if (args.size() < 2) {
-            messageSender().sendError(player, "Usage: /wood <path> <valid surface blocks> [distance]");
+                messageSender().sendError(player, "Usage: /wood <path> <surface pattern> [distance] [adjacent]");
             return;
         }
 
         String path = CommandUtils.stripDollar(args.asString(0));
-        List<String> surfaceBlocks = CommandUtils.parseBlockNames(args.asString(1));
-
-        if (!validateSurfaceBlocks(player, surfaceBlocks)) {
-            return;
-        }
+        String surfaceMaskInput = args.asString(1);
 
         float distance = 6f;
         if (args.size() >= 3) {
@@ -132,8 +128,16 @@ public class Wood extends AdvancedCommand implements IPlayerTabExecutor {
                 .world(BukkitAdapter.adapt(player.getWorld()))
                 .actor(BukkitAdapter.adapt(player))
                 .build()) {
+            Mask surfaceMask;
+            try {
+                surfaceMask = CommandUtils.parseMask(player, editSession, surfaceMaskInput);
+            } catch (InputParseException e) {
+                messageSender().sendError(player, "Invalid surface mask: " + e.getMessage());
+                return;
+            }
+
             editSession.setMask(localSession.getMask());
-            List<WoodPlacement.Site> sites = WoodPlacement.sampleTrees(editSession, region, treeSchematics, surfaceBlocks,
+            List<WoodPlacement.Site> sites = WoodPlacement.sampleTrees(editSession, region, treeSchematics, surfaceMask,
                     distance);
 
             if (sites.isEmpty()) {
@@ -148,9 +152,9 @@ public class Wood extends AdvancedCommand implements IPlayerTabExecutor {
                 // fallback), otherwise validate only the center surface.
                 boolean valid;
                 if (requireAdjacent) {
-                    valid = WoodPlacement.hasAdjacentValidSurface(editSession, site.position(), surfaceBlocks);
+                    valid = WoodPlacement.hasAdjacentValidSurface(editSession, site.position(), surfaceMask);
                 } else {
-                    valid = WoodPlacement.isValidSurfacePosition(editSession, site.position(), surfaceBlocks);
+                    valid = WoodPlacement.isValidSurfacePosition(editSession, site.position(), surfaceMask);
                 }
                 if (!valid) {
                     continue;
@@ -204,7 +208,7 @@ public class Wood extends AdvancedCommand implements IPlayerTabExecutor {
                     .collect(Collectors.toList());
         }
         if (args.size() == 2) {
-            return CommandUtils.completeBlockIdNames(args.asString(1));
+            return CommandUtils.completeMask(player, args.asString(1));
         }
         if (args.size() == 4) {
             return List.of("true", "false").stream()
@@ -214,38 +218,4 @@ public class Wood extends AdvancedCommand implements IPlayerTabExecutor {
         return Collections.emptyList();
     }
 
-    private boolean validateSurfaceBlocks(@NotNull Player player, List<String> surfaceBlocks) {
-        for (String block : surfaceBlocks) {
-            if (block == null || block.isBlank()) {
-                continue;
-            }
-
-            String normalized = block.trim().toLowerCase(Locale.ROOT);
-
-            if (CommandUtils.isLegacyId(normalized)) {
-                try {
-                    CommandUtils.parseLegacyId(normalized);
-                } catch (NumberFormatException e) {
-                    messageSender().sendError(player, "Invalid legacy block id: " + block);
-                    return false;
-                }
-
-                continue;
-            }
-
-            String blockId = normalized;
-            if (!blockId.contains(":")) {
-                blockId = "minecraft:" + blockId;
-            }
-
-            BlockType blockType = BlockTypes.get(blockId);
-
-            if (blockType == null) {
-                messageSender().sendError(player, "Unknown block type: " + block);
-                return false;
-            }
-        }
-
-        return true;
-    }
 }

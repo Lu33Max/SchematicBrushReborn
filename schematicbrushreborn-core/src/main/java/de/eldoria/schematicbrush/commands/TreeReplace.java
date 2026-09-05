@@ -18,13 +18,13 @@ import com.sk89q.worldedit.LocalSession;
 import com.sk89q.worldedit.MaxChangedBlocksException;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.extension.input.InputParseException;
+import com.sk89q.worldedit.function.mask.Mask;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.transform.AffineTransform;
 import com.sk89q.worldedit.regions.Polygonal2DRegion;
 import com.sk89q.worldedit.regions.Region;
 import com.sk89q.worldedit.session.ClipboardHolder;
-import com.sk89q.worldedit.world.block.BlockType;
-import com.sk89q.worldedit.world.block.BlockTypes;
 
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -64,11 +64,7 @@ public class TreeReplace extends AdvancedCommand implements IPlayerTabExecutor {
         }
 
         String path = CommandUtils.stripDollar(args.asString(0));
-        List<String> blocks = CommandUtils.parseBlockNames(args.asString(1));
-        
-        if (!validateReplaceBlocks(player, blocks)) {
-            return;
-        }
+        String maskInput = args.asString(1);
 
         Mode mode = Mode.REPLACE;
         if (args.size() >= 3) {
@@ -113,8 +109,16 @@ public class TreeReplace extends AdvancedCommand implements IPlayerTabExecutor {
                 .world(BukkitAdapter.adapt(player.getWorld()))
                 .actor(BukkitAdapter.adapt(player))
                 .build()) {
+            Mask mask;
+            try {
+                mask = CommandUtils.parseMask(player, editSession, maskInput);
+            } catch (InputParseException e) {
+                messageSender().sendError(player, "Invalid block mask: " + e.getMessage());
+                return;
+            }
+
             editSession.setMask(localSession.getMask());
-            List<WoodPlacement.Site> sites = WoodPlacement.replaceTrees(editSession, region, treeSchematics, blocks);
+            List<WoodPlacement.Site> sites = WoodPlacement.replaceTrees(editSession, region, treeSchematics, mask);
             if (sites.isEmpty()) {
                 messageSender().sendError(player, "No matching blocks found in selection.");
                 return;
@@ -167,7 +171,7 @@ public class TreeReplace extends AdvancedCommand implements IPlayerTabExecutor {
                     .collect(Collectors.toList());
         }
         if (args.size() == 2) {
-            return CommandUtils.completeBlockIdNames(args.asString(1));
+            return CommandUtils.completeMask(player, args.asString(1));
         }
         if (args.size() == 3) {
             return List.of("above", "replace").stream()
@@ -175,41 +179,6 @@ public class TreeReplace extends AdvancedCommand implements IPlayerTabExecutor {
                     .collect(Collectors.toList());
         }
         return Collections.emptyList();
-    }
-
-    private boolean validateReplaceBlocks(@NotNull Player player, List<String> surfaceBlocks) {
-        for (String block : surfaceBlocks) {
-            if (block == null || block.isBlank()) {
-                continue;
-            }
-
-            String normalized = block.trim().toLowerCase(Locale.ROOT);
-
-            if (CommandUtils.isLegacyId(normalized)) {
-                try {
-                    CommandUtils.parseLegacyId(normalized);
-                } catch (NumberFormatException e) {
-                    messageSender().sendError(player, "Invalid legacy block id: " + block);
-                    return false;
-                }
-
-                continue;
-            }
-
-            String blockId = normalized;
-            if (!blockId.contains(":")) {
-                blockId = "minecraft:" + blockId;
-            }
-
-            BlockType blockType = BlockTypes.get(blockId);
-
-            if (blockType == null) {
-                messageSender().sendError(player, "Unknown block type: " + block);
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private enum Mode {

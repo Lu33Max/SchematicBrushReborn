@@ -13,12 +13,10 @@ import org.bukkit.entity.Player;
 
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
+import com.sk89q.worldedit.function.mask.Mask;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.Polygonal2DRegion;
 import com.sk89q.worldedit.regions.Region;
-import com.sk89q.worldedit.world.block.BlockState;
-import com.sk89q.worldedit.world.block.BlockType;
-import com.sk89q.worldedit.world.registry.LegacyMapper;
 
 import de.eldoria.schematicbrush.brush.config.selector.PathSelector;
 import de.eldoria.schematicbrush.schematics.Schematic;
@@ -59,7 +57,7 @@ public final class WoodPlacement {
             EditSession editSession,
             Region region,
             Set<Schematic> schematics,
-            List<String> validSurfaceBlocks,
+            Mask surfaceMask,
             float distance) throws IOException {
 
         if (schematics.isEmpty()
@@ -76,7 +74,7 @@ public final class WoodPlacement {
             collectSurfacePositions(
                 editSession,
                 region,
-                validSurfaceBlocks
+                surfaceMask
             );
 
         if (surfacePositions.isEmpty()) {
@@ -224,15 +222,13 @@ public final class WoodPlacement {
     private static Map<Long, BlockVector3> collectSurfacePositions(
             EditSession editSession,
             Region region,
-            List<String> validSurfaceBlocks) {
+            Mask surfaceMask) {
 
         if (!(region instanceof Polygonal2DRegion polygon)) {
             return Collections.emptyMap();
         }
 
-        SurfaceMatcher matcher = createSurfaceMatcher(validSurfaceBlocks);
-
-        if (matcher.isEmpty()) {
+        if (surfaceMask == null) {
             return Collections.emptyMap();
         }
 
@@ -251,9 +247,7 @@ public final class WoodPlacement {
             */
             for (int y = maxY; y >= minY; y--) {
                 BlockVector3 position = BlockVector3.at(x, y, z);
-                BlockType blockType = editSession.getBlock(position).getBlockType();
-
-                if (!matchesSurface(blockType, matcher)) {
+                if (!surfaceMask.test(position)) {
                     continue;
                 }
 
@@ -271,113 +265,16 @@ public final class WoodPlacement {
         return surfacePositions;
     }
 
-    private static SurfaceMatcher createSurfaceMatcher(
-        List<String> surfaceBlocks) {
-
-        if (surfaceBlocks == null || surfaceBlocks.isEmpty()) {
-            return SurfaceMatcher.EMPTY;
-        }
-
-        Set<String> fullIds = new java.util.HashSet<>();
-        Set<String> simpleIds = new java.util.HashSet<>();
-
-        for (String block : surfaceBlocks) {
-            if (block == null) {
-                continue;
-            }
-
-            String normalized = block.trim().toLowerCase();
-            if (normalized.isEmpty()) {
-                continue;
-            }
-
-            // Legacy IDs such as: 2, 35:5
-            if (isLegacyId(normalized)) {
-                BlockState legacyState = legacyBlockState(normalized);
-                if (legacyState == null) {
-                    continue;
-                }
-
-                String id = legacyState.getBlockType().id().toLowerCase();
-                fullIds.add(id);
-
-                int separator = id.indexOf(':');
-                if (separator >= 0 && separator + 1 < id.length()) {
-                    simpleIds.add(
-                        id.substring(separator + 1)
-                    );
-                }
-
-                continue;
-            }
-
-            // Namespace-qualified IDs: minecraft:grass_block
-            if (normalized.indexOf(':') >= 0) {
-                fullIds.add(normalized);
-
-                int separator = normalized.indexOf(':');
-                if (separator + 1 < normalized.length()) {
-                    simpleIds.add(
-                        normalized.substring(separator + 1)
-                    );
-                }
-
-            } else {
-                // Simple IDs: grass_block
-                simpleIds.add(normalized);
-            }
-        }
-
-        return new SurfaceMatcher(
-            Set.copyOf(fullIds),
-            Set.copyOf(simpleIds)
-        );
-    }
-
     public static boolean isValidSurfacePosition(
             EditSession editSession,
             BlockVector3 position,
-            List<String> surfaceBlocks) {
-
-        SurfaceMatcher matcher =
-                createSurfaceMatcher(surfaceBlocks);
-
-        return isValidSurfacePosition(
-                editSession,
-                position,
-                matcher
-        );
-    }
-
-    private static boolean isValidSurfacePosition(
-            EditSession editSession,
-            BlockVector3 position,
-            SurfaceMatcher matcher) {
-
-        if (matcher.isEmpty()) {
+            Mask surfaceMask) {
+        if (surfaceMask == null) {
             return false;
         }
 
-        BlockType blockType =
-                editSession
-                        .getBlock(position)
-                        .getBlockType();
-
-        if (!matchesSurface(
-                blockType,
-                matcher)) {
-
-            return false;
-        }
-
-        BlockVector3 above =
-                position.add(0, 1, 0);
-
-        return editSession
-                .getBlock(above)
-                .getBlockType()
-                .getMaterial()
-                .isAir();
+        return surfaceMask.test(position)
+                && editSession.getBlock(position.add(0, 1, 0)).getBlockType().getMaterial().isAir();
     }
 
     /**
@@ -391,49 +288,23 @@ public final class WoodPlacement {
      * 3. one block below
      */
     public static boolean hasAdjacentValidSurface(
-        EditSession editSession,
-        BlockVector3 position,
-        List<String> surfaceBlocks) {
-
-        SurfaceMatcher matcher =
-                createSurfaceMatcher(surfaceBlocks);
-
-        return hasAdjacentValidSurface(
-                editSession,
-                position,
-                matcher
-        );
-    }
-
-    private static boolean hasAdjacentValidSurface(
-        EditSession editSession,
-        BlockVector3 position,
-        SurfaceMatcher matcher) {
-
-        if (!isValidSurfacePosition(
-                editSession,
-                position,
-                matcher)) {
-
+            EditSession editSession,
+            BlockVector3 position,
+            Mask surfaceMask) {
+        if (!isValidSurfacePosition(editSession, position, surfaceMask)) {
             return false;
         }
 
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
-
                 if (dx == 0 && dz == 0) {
                     continue;
                 }
 
                 BlockVector3 neighbor = position.add(dx, 0, dz);
-
-                if (isValidSurfacePosition(editSession, neighbor, matcher)) {
-                    continue;
-                }
-                if (isValidSurfacePosition(editSession, neighbor.add(0, 1, 0), matcher)) {
-                    continue;
-                }
-                if (isValidSurfacePosition(editSession, neighbor.add(0, -1, 0), matcher)) {
+                if (isValidSurfacePosition(editSession, neighbor, surfaceMask)
+                    || isValidSurfacePosition(editSession, neighbor.add(0, 1, 0), surfaceMask)
+                    || isValidSurfacePosition(editSession, neighbor.add(0, -1, 0), surfaceMask)) {
                     continue;
                 }
 
@@ -444,91 +315,23 @@ public final class WoodPlacement {
         return true;
     }
 
-    private static boolean matchesSurface(
-        BlockType blockType,
-        SurfaceMatcher matcher) {
-
-        if (blockType == null || matcher.isEmpty()) {
-            return false;
-        }
-
-        String id = blockType.id().toLowerCase();
-
-        if (matcher.fullIds().contains(id)) {
-            return true;
-        }
-
-        int separator = id.indexOf(':');
-        if (separator >= 0 && separator + 1 < id.length()) {
-            return matcher.simpleIds().contains(
-                    id.substring(separator + 1)
-            );
-        }
-
-        return matcher.simpleIds().contains(id);
-    }
-
-    private static boolean isLegacyId(String block) {
-        return block.matches(
-                "^[0-9]+(:[0-9]+)?$"
-        );
-    }
-
-    private static BlockState legacyBlockState(String legacyId) {
-        try {
-            int id =
-                legacyId.contains(":")
-                    ? Integer.parseInt(
-                        legacyId.substring(
-                            0,
-                            legacyId.indexOf(':')
-                        )
-                    )
-                    : Integer.parseInt(
-                        legacyId
-                    );
-
-            int data = 0;
-
-            if (legacyId.contains(":")) {
-                data =
-                    Integer.parseInt(
-                        legacyId.substring(
-                            legacyId.indexOf(':') + 1
-                        )
-                    );
-            }
-
-            return LegacyMapper.getInstance().getBlockFromLegacy(id, data);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
     public static List<Site> replaceTrees(
         EditSession editSession,
         Region region,
         Set<Schematic> schematics,
-        List<String> validBlocks) throws IOException {
+            Mask mask) throws IOException {
 
         if (schematics.isEmpty()
-                || !(region instanceof Polygonal2DRegion)) {
+                || !(region instanceof Polygonal2DRegion)
+                || mask == null) {
 
-            return Collections.emptyList();
-        }
-
-        SurfaceMatcher matcher = createSurfaceMatcher(validBlocks);
-
-        if (matcher.isEmpty()) {
             return Collections.emptyList();
         }
 
         List<Site> sites = new ArrayList<>();
 
         for (BlockVector3 position : region) {
-            BlockType blockType = editSession.getBlock(position).getBlockType();
-
-            if (!matchesSurface(blockType, matcher)) {
+            if (!mask.test(position)) {
                 continue;
             }
 
@@ -765,19 +568,4 @@ public final class WoodPlacement {
             Clipboard clipboard) {
     }
 
-    private record SurfaceMatcher(
-        Set<String> fullIds,
-        Set<String> simpleIds) {
-
-        private static final SurfaceMatcher EMPTY =
-                new SurfaceMatcher(
-                        Collections.emptySet(),
-                        Collections.emptySet()
-                );
-
-        private boolean isEmpty() {
-            return fullIds.isEmpty()
-                    && simpleIds.isEmpty();
-        }
-    }
 }
