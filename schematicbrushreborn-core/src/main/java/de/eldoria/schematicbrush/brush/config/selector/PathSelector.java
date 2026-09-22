@@ -74,8 +74,19 @@ public class PathSelector extends BaseSelector {
             }
         }
 
-        return selectorParts.length <= directoryParts.length
-            || matchesSegment(selectorParts[selectorParts.length - 1], schematicName);
+        if (selectorParts.length <= directoryParts.length) {
+            return true;
+        }
+
+        // Direct schematic name selection (e.g. "$trees/oak5,birch3") is only allowed once the
+        // path already points inside a folder. At the root level the last segment must still be
+        // matched as a (wildcard) directory segment, so a bare name like "oak5" cannot select a
+        // schematic directly.
+        if (directoryParts.length == 0) {
+            return matchesSegment(selectorParts[selectorParts.length - 1], "");
+        }
+
+        return matchesSegment(selectorParts[selectorParts.length - 1], schematicName);
     }
 
     private boolean matchesSegment(String selector, String value) {

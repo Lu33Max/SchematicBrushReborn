@@ -504,10 +504,15 @@ public class SchematicBrushCache implements SchematicCache {
             Map<String, Set<Schematic>> schematicDirectories,
             String input) {
         for (var entry : schematicDirectories.entrySet()) {
+            // Direct schematic name selection is only allowed once the path already points
+            // inside a folder (see PathSelector#matchesPath). Root level schematics must not
+            // be suggested by name, only by their (wildcard) directory segment.
+            if (entry.getKey().isBlank()) {
+                continue;
+            }
+
             for (var schematic : entry.getValue()) {
-                var path = entry.getKey().isBlank()
-                        ? schematic.name()
-                        : entry.getKey() + "/" + schematic.name();
+                var path = entry.getKey() + "/" + schematic.name();
                 collectNextPatternSegments(result, List.of(path), input);
             }
         }
