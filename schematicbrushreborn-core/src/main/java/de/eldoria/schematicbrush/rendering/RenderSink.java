@@ -46,7 +46,7 @@ public class RenderSink {
         this.subscribers.add(sinkOwner);
     }
 
-    public int sendChanges() {
+    public synchronized int sendChanges() {
         int changed = dispatchSend();
         if (changed != 0) {
             flushed = System.currentTimeMillis();
@@ -138,28 +138,28 @@ public class RenderSink {
         return changed;
     }
 
-    public int size() {
+    public synchronized int size() {
         return Optional.ofNullable(oldChanges).map(Changes::size).orElse(0)
                 + Optional.ofNullable(newChanges).map(Changes::size).orElse(0);
     }
 
-    public boolean isActive() {
+    public synchronized boolean isActive() {
         return isSubscribed() && System.currentTimeMillis() - flushed < 60000;
     }
 
-    public void push(Changes newChanges) {
+    public synchronized void push(Changes newChanges) {
         oldChanges = this.newChanges;
         this.newChanges = newChanges;
         dirty = true;
         skipped.add(0);
     }
 
-    public int pushAndSend(Changes newChanges) {
+    public synchronized int pushAndSend(Changes newChanges) {
         push(newChanges);
         return sendChanges();
     }
 
-    public void pushAndQueue(Changes newChanges) {
+    public synchronized void pushAndQueue(Changes newChanges) {
         push(newChanges);
         queueRender();
     }
@@ -172,11 +172,11 @@ public class RenderSink {
         return sinkOwner;
     }
 
-    public boolean isDirty() {
+    public synchronized boolean isDirty() {
         return dirty;
     }
 
-    public boolean isSubscribed() {
+    public synchronized boolean isSubscribed() {
         return !subscribers.isEmpty();
     }
 
@@ -185,7 +185,7 @@ public class RenderSink {
      *
      * @param subscriber new subscriber
      */
-    public void subscribe(Player subscriber) {
+    public synchronized void subscribe(Player subscriber) {
         if (subscribers.contains(subscriber)) return;
         add.add(subscriber);
         queueRender();
@@ -196,22 +196,22 @@ public class RenderSink {
      *
      * @param subscriber subscriber to remove
      */
-    public void unsubscribe(Player subscriber) {
+    public synchronized void unsubscribe(Player subscriber) {
         if (!subscribers.contains(subscriber)) return;
         remove.add(subscriber);
         queueRender();
     }
 
-    public void unsubscribeAll() {
+    public synchronized void unsubscribeAll() {
         remove.addAll(subscribers);
         queueRender();
     }
 
-    public void remove(Player player) {
+    public synchronized void remove(Player player) {
         subscribers.remove(player);
     }
 
-    public String info() {
+    public synchronized String info() {
         Optional<Player> player = Optional.of(Bukkit.getPlayer(sinkOwner));
         return """
                 Owner: %s

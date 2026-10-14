@@ -23,7 +23,7 @@ public class BrushModifier implements Listener {
     @EventHandler(priority = EventPriority.LOW)
     public void onLeftClick(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) return;
-        if (event.getAction() != Action.LEFT_CLICK_AIR) return;
+        if (event.getAction() != Action.LEFT_CLICK_AIR && event.getAction() != Action.LEFT_CLICK_BLOCK) return;
         var schematicBrush = WorldEditBrush.getSchematicBrush(event.getPlayer());
         if (schematicBrush.isEmpty()) return;
 

@@ -54,19 +54,24 @@ public class PacketWorker implements Runnable {
 
     @Override
     public void run() {
-        if (!claim()) return;
-        while (!queue.isEmpty()) {
-            var poll = queue.poll();
-            tickChanges.addAndGet(poll.sendChanges());
+        while (true) {
+            RenderSink renderSink;
+            synchronized (queue) {
+                renderSink = queue.poll();
+                if (renderSink == null) {
+                    // Queue state and active state must transition together. Otherwise an enqueue
+                    // between the empty check and this assignment can be left without a worker.
+                    active = false;
+                    return;
+                }
+            }
+            try {
+                tickChanges.addAndGet(renderSink.sendChanges());
+            } catch (Exception e) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "An error occurred while sending preview changes", e);
+            }
         }
-        active = false;
-    }
-
-    // There is a minimal chance of a race condition. That's why this method needs to be synchronized
-    private synchronized boolean claim() {
-        if (active) return false;
-        active = true;
-        return true;
     }
 
     /**
@@ -75,23 +80,34 @@ public class PacketWorker implements Runnable {
      * @param renderSink render sink to queue.
      */
     public void queue(RenderSink renderSink) {
-        queue.add(renderSink);
-        if (!active) worker.submit(this);
+        synchronized (queue) {
+            queue.add(renderSink);
+            if (active) return;
+            active = true;
+        }
+        worker.submit(this);
     }
 
 
     public void remove(Player player) {
-        queue.removeIf(e -> e == null || e.sinkOwner().equals(player.getUniqueId()));
+        synchronized (queue) {
+            queue.removeIf(e -> e == null || e.sinkOwner().equals(player.getUniqueId()));
+        }
     }
 
     public int packetQueueCount() {
-        // We copy the queue to avoid modification during counting.
-        // Synchronizing the queue would stop the worker from working properly
-        return new ArrayList<>(queue).stream().filter(Objects::nonNull).mapToInt(RenderSink::size).sum();
+        // Snapshot under the queue lock so metrics do not race queue mutations.
+        ArrayList<RenderSink> queued;
+        synchronized (queue) {
+            queued = new ArrayList<>(queue);
+        }
+        return queued.stream().filter(Objects::nonNull).mapToInt(RenderSink::size).sum();
     }
 
     public int size() {
-        return queue.size();
+        synchronized (queue) {
+            return queue.size();
+        }
     }
 
     public String info() {
