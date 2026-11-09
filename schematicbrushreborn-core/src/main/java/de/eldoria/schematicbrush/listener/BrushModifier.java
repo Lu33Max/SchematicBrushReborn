@@ -44,6 +44,17 @@ public class BrushModifier implements Listener {
         event.setCancelled(true);
     }
 
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onLockPreview(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND || !event.getPlayer().isSneaking()) return;
+        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        var schematicBrush = WorldEditBrush.getSchematicBrush(event.getPlayer());
+        if (schematicBrush.isEmpty() || !(schematicBrush.get() instanceof de.eldoria.schematicbrush.brush.SchematicBrushImpl brush)) return;
+        boolean locked = brush.toggleLock();
+        messageSender.sendActionBar(event.getPlayer(), locked ? "<dark_green>Preview locked." : "<dark_green>Preview unlocked.");
+        event.setCancelled(true);
+    }
+
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onItemDrop(PlayerSwapHandItemsEvent event) {
         var material = event.getOffHandItem();

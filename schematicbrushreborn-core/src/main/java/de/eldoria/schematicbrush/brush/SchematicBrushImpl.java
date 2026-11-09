@@ -54,6 +54,7 @@ public class SchematicBrushImpl implements SchematicBrush {
     @Nullable
     private BrushBuilder builder;
     private final BrushHistory history = new BrushHistoryImpl(100);
+    private BlockVector3 lockedPosition;
 
     /**
      * Create a new schematic brush for a player.
@@ -81,7 +82,7 @@ public class SchematicBrushImpl implements SchematicBrush {
 
     @Override
     public void build(EditSession editSession, BlockVector3 position, Pattern pattern, double size) {
-        paste(editSession, position);
+        paste(editSession, lockedPosition == null ? position : lockedPosition);
     }
 
     private void paste(EditSession editSession, BlockVector3 position) {
@@ -94,6 +95,7 @@ public class SchematicBrushImpl implements SchematicBrush {
         Operations.completeBlindly(paste);
         plugin.getServer().getPluginManager().callEvent(new PostPasteEvent(brushOwner(), nextPaste));
         buildNextPaste();
+        lockedPosition = null;
     }
 
     private void performPasteFake(EditSession editSession, Extent targetExtent, BlockVector3 position) {
@@ -117,7 +119,9 @@ public class SchematicBrushImpl implements SchematicBrush {
             if (bukkitPlayer == null) return new CapturingExtentImpl(editSession, world, settings, new Location(world));
             var brushTool = getBrushTool();
             if (brushTool.isEmpty()) return null;
-            var target = bukkitPlayer.getBlockTrace(brushTool.get().getRange(), true, brushTool.get().getTraceMask());
+            var target = lockedPosition == null
+                    ? bukkitPlayer.getBlockTrace(brushTool.get().getRange(), true, brushTool.get().getTraceMask())
+                    : new Location(BukkitAdapter.adapt(brushOwner().getWorld()), lockedPosition.toVector3());
             world.location(target);
             capturingExtent = new CapturingExtentImpl(editSession, world, settings, target);
             performPasteFake(editSession, capturingExtent, target.toVector().toBlockPoint());
@@ -144,7 +148,22 @@ public class SchematicBrushImpl implements SchematicBrush {
     @Override
     public Optional<Location> getBrushLocation() {
         var brushTool = getBrushTool();
-        return brushTool.map(tool -> actor().getBlockTrace(tool.getRange(), true, tool.getTraceMask()));
+        return brushTool.map(tool -> lockedPosition == null
+                ? actor().getBlockTrace(tool.getRange(), true, tool.getTraceMask())
+                : new Location(BukkitAdapter.adapt(brushOwner().getWorld()), lockedPosition.toVector3()));
+    }
+
+    public boolean toggleLock() {
+        if (lockedPosition != null) {
+            lockedPosition = null;
+            return false;
+        }
+        getBrushLocation().ifPresent(location -> lockedPosition = location.toVector().toBlockPoint());
+        return lockedPosition != null;
+    }
+
+    public boolean isLocked() {
+        return lockedPosition != null;
     }
 
     private void buildNextPaste() {

@@ -180,6 +180,9 @@ public class RenderService implements Runnable, Listener {
                         .toVector()) > Math.pow(general.renderDistance(), 2))
                 .orElse(true);
         if (outOfRange) {
+            if (brush instanceof de.eldoria.schematicbrush.brush.SchematicBrushImpl impl && impl.isLocked()) {
+                impl.toggleLock();
+            }
             resolveChanges(player);
             return;
         }
@@ -243,6 +246,12 @@ public class RenderService implements Runnable, Listener {
             }
             players.add(player);
         } else {
+            WorldEditBrush.getSchematicBrush(player)
+                    .filter(de.eldoria.schematicbrush.brush.SchematicBrushImpl.class::isInstance)
+                    .map(de.eldoria.schematicbrush.brush.SchematicBrushImpl.class::cast)
+                    .ifPresent(brush -> {
+                        if (brush.isLocked()) brush.toggleLock();
+                    });
             players.remove(player);
             resolveChanges(player);
         }
