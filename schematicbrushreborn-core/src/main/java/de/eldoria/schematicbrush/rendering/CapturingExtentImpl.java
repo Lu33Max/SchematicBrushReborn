@@ -20,17 +20,13 @@ import com.sk89q.worldedit.world.biome.BiomeType;
 import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.world.block.BlockState;
 import com.sk89q.worldedit.world.block.BlockStateHolder;
-import com.sk89q.worldedit.world.block.BlockType;
-import com.sk89q.worldedit.world.block.BlockTypes;
 import de.eldoria.schematicbrush.brush.config.BrushSettings;
 import de.eldoria.schematicbrush.brush.config.modifier.PlacementModifier;
-import org.apache.commons.lang.ArrayUtils;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
 public class CapturingExtentImpl implements CapturingExtent {
-    private static final BlockType[] AIR_TYPES = {BlockTypes.AIR, BlockTypes.VOID_AIR, BlockTypes.CAVE_AIR};
     private final ChangesImpl.Builder changes = ChangesImpl.builder();
     private final EditSession session;
     private final FakeWorldImpl fakeWorld;
@@ -94,12 +90,12 @@ public class CapturingExtentImpl implements CapturingExtent {
     public <T extends BlockStateHolder<T>> boolean setBlock(BlockVector3 position, T block) {
         var data = BukkitAdapter.adapt(block.toBaseBlock());
         var location = BukkitAdapter.adapt(fakeWorld.getWorld(), position);
-        if ((boolean) settings.getMutator(PlacementModifier.REPLACE_ALL).value()) {
+        if (settings == null || (boolean) settings.getMutator(PlacementModifier.REPLACE_ALL).value()) {
             changes.add(location, location.getBlock().getBlockData(), data);
-        } else {
-            if (ArrayUtils.contains(AIR_TYPES, getBlock(position).getBlockType())) {
-                changes.add(location, location.getBlock().getBlockData(), data);
-            }
+        } else if (fakeWorld.getWorld().getBlockAt(position.x(), position.y(), position.z()).getType().isAir()) {
+            // Read the real destination world directly. Going through EditSession here routes
+            // the read through FAWE's chunk extent while it is processing the paste operation.
+            changes.add(location, location.getBlock().getBlockData(), data);
         }
         return true;
     }
