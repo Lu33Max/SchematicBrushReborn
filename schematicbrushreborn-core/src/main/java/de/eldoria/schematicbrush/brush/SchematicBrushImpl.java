@@ -111,6 +111,10 @@ public class SchematicBrushImpl implements SchematicBrush {
      */
     @Override
     public BlockChangeCollector pasteFake() {
+        // A failed schematic load leaves the clipboard null. Skip this preview so the
+        // render service can clear any previously displayed preview for this player.
+        if (nextPaste == null || nextPaste.clipboard() == null) return null;
+
         var world = new FakeWorldImpl(brushOwner().getWorld());
         world.location(new Location(world));
         CapturingExtent capturingExtent;
