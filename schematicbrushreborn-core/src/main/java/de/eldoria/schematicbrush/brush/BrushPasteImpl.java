@@ -26,6 +26,7 @@ import de.eldoria.schematicbrush.brush.config.util.Shiftable;
 import de.eldoria.schematicbrush.schematics.Schematic;
 
 import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
@@ -191,6 +192,9 @@ public class BrushPasteImpl implements BrushPaste {
     public final void reloadSchematic() {
         try {
             clipboard = schematic.loadSchematic();
+        } catch (FileNotFoundException e) {
+            SchematicBrushReborn.logger().warning("Schematic \"" + schematic.path() + "\" no longer exists.");
+            clipboard = null;
         } catch (IOException e) {
             SchematicBrushReborn.logger().log(Level.SEVERE, "Could not load schematic", e);
             clipboard = null;

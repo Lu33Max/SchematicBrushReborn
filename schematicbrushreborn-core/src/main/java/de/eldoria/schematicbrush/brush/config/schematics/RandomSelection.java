@@ -20,6 +20,7 @@ import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -90,9 +91,11 @@ public class RandomSelection implements SchematicSelection {
             randomSchematic = schematics.get(randomInt(schematics.size()));
             try {
                 clipboard = randomSchematic.loadSchematic();
+            } catch (FileNotFoundException e) {
+                SchematicBrushReborn.logger().warning("Schematic \"" + randomSchematic.path() + "\" no longer exists; skipping it.");
+                schematics.remove(randomSchematic);
             } catch (IOException e) {
-                // Silently fail and search for another schematic.
-                SchematicBrushReborn.logger().log(Level.INFO, "Schematic \"" + randomSchematic.path() + "\" does not exist anymore.", e);
+                SchematicBrushReborn.logger().log(Level.WARNING, "Could not load schematic \"" + randomSchematic.path() + "\"; skipping it.", e);
                 schematics.remove(randomSchematic);
             } catch (Exception e) {
                 SchematicBrushReborn.logger().log(Level.SEVERE, "A critical error occured when loading \"" + randomSchematic.path() + "\".", e);
@@ -100,7 +103,7 @@ public class RandomSelection implements SchematicSelection {
             }
         }
 
-        return randomSchematic;
+        return clipboard == null ? null : randomSchematic;
     }
 
     @NotNull
