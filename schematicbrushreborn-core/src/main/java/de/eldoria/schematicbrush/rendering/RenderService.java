@@ -17,6 +17,8 @@ import de.eldoria.schematicbrush.util.Permissions;
 import de.eldoria.schematicbrush.util.RollingQueue;
 import de.eldoria.schematicbrush.util.Text;
 import de.eldoria.schematicbrush.util.WorldEditBrush;
+import org.bukkit.Location;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -36,7 +38,7 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
-public class RenderService implements Runnable, Listener {
+public class RenderService implements Runnable, Listener, PreviewService {
     /**
      * The sinks of all active players. A sink does not require any subscribers by default.
      */
@@ -45,6 +47,8 @@ public class RenderService implements Runnable, Listener {
      * The sink a player is subscribed to.
      */
     private final Map<UUID, RenderSink> subscription = new HashMap<>();
+    /** External addon previews temporarily take precedence over this player's brush preview. */
+    private final Map<UUID, ExternalPreview> externalPreviews = new HashMap<>();
     private final MessageSender messageSender;
     /**
      * The players which should receive render preview packets
@@ -82,6 +86,8 @@ public class RenderService implements Runnable, Listener {
 
     @EventHandler
     public void onLeave(PlayerQuitEvent event) {
+        ExternalPreview external = externalPreviews.remove(event.getPlayer().getUniqueId());
+        if (external != null) external.release(false, false);
         players.remove(event.getPlayer());
         Optional.ofNullable(sinks.remove(event.getPlayer().getUniqueId())).ifPresent(RenderSink::unsubscribeAll);
         getSubscription(event.getPlayer()).ifPresent(sink -> sink.remove(event.getPlayer()));
@@ -147,6 +153,7 @@ public class RenderService implements Runnable, Listener {
     }
 
     private void handlePlayerTick(Player player) {
+        if (externalPreviews.containsKey(player.getUniqueId())) return;
         // No need to render dirty sinks or sinks without subscribers.
         if (getSink(player).isDirty() || !getSink(player).isSubscribed()) {
             return;
@@ -237,6 +244,77 @@ public class RenderService implements Runnable, Listener {
 
     private RenderSink getSink(Player player) {
         return sinks.computeIfAbsent(player.getUniqueId(), k -> new RenderSink(player, worker, configuration));
+    }
+
+    @Override
+    public PreviewHandle show(Player player, Map<Location, BlockData> blocks) {
+        UUID id = player.getUniqueId();
+        ExternalPreview previous = externalPreviews.remove(id);
+        boolean resumeBrushPreview = previous == null ? getState(player) : previous.resumeBrushPreview;
+        if (previous != null) previous.release(true, false);
+        if (resumeBrushPreview) setState(player, false);
+
+        ExternalPreview preview = new ExternalPreview(player, resumeBrushPreview);
+        externalPreviews.put(id, preview);
+        preview.update(blocks);
+        return preview;
+    }
+
+    private final class ExternalPreview implements PreviewHandle {
+        private final Player player;
+        private final boolean resumeBrushPreview;
+        private final Map<Location, BlockData> shown = new HashMap<>();
+        private boolean closed;
+
+        private ExternalPreview(Player player, boolean resumeBrushPreview) {
+            this.player = player;
+            this.resumeBrushPreview = resumeBrushPreview;
+        }
+
+        @Override
+        public void update(Map<Location, BlockData> blocks) {
+            if (closed || !player.isOnline()) return;
+            Map<Location, BlockData> next = new HashMap<>();
+            for (Map.Entry<Location, BlockData> entry : blocks.entrySet()) {
+                Location location = blockLocation(entry.getKey());
+                BlockData state = entry.getValue().clone();
+                next.put(location, state);
+            }
+            for (Location location : shown.keySet()) {
+                if (!next.containsKey(location)) restore(location);
+            }
+            for (Map.Entry<Location, BlockData> entry : next.entrySet()) {
+                BlockData prior = shown.get(entry.getKey());
+                if (!entry.getValue().equals(prior)) player.sendBlockChange(entry.getKey(), entry.getValue());
+            }
+            shown.clear();
+            shown.putAll(next);
+        }
+
+        private void restore(Location location) {
+            if (location.getWorld() != null) player.sendBlockChange(location, location.getBlock().getBlockData());
+        }
+
+        private Location blockLocation(Location location) {
+            return new Location(location.getWorld(), location.getBlockX(), location.getBlockY(), location.getBlockZ());
+        }
+
+        @Override
+        public void close() {
+            release(true, true);
+        }
+
+        private void release(boolean restoreBlocks, boolean resumeBrush) {
+            if (closed) return;
+            closed = true;
+            if (restoreBlocks && player.isOnline()) {
+                for (Location location : shown.keySet()) restore(location);
+            }
+            if (externalPreviews.get(player.getUniqueId()) == this) {
+                externalPreviews.remove(player.getUniqueId());
+            }
+            if (resumeBrush && resumeBrushPreview && player.isOnline()) setState(player, true);
+        }
     }
 
     public void setState(Player player, boolean state) {

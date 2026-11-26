@@ -14,6 +14,7 @@ import de.eldoria.EldoUtilities;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
 import de.eldoria.schematicbrush.brush.config.BrushSettingsRegistry;
 import de.eldoria.schematicbrush.config.Configuration;
+import de.eldoria.schematicbrush.rendering.PreviewService;
 import de.eldoria.schematicbrush.schematics.SchematicRegistry;
 import de.eldoria.schematicbrush.storage.StorageRegistry;
 import org.bukkit.plugin.PluginDescriptionFile;
@@ -79,4 +80,11 @@ public abstract class SchematicBrushReborn extends EldoPlugin {
      * @return plugin config
      */
     public abstract Configuration config();
+
+    /**
+     * Get the preview renderer for client-side block previews submitted by addons.
+     *
+     * @return the preview service
+     */
+    public abstract PreviewService previews();
 }

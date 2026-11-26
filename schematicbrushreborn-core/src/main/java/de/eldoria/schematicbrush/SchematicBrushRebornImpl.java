@@ -66,6 +66,7 @@ import de.eldoria.schematicbrush.config.serialization.serializer.RotationSeriali
 import de.eldoria.schematicbrush.listener.BrushModifier;
 import de.eldoria.schematicbrush.listener.NotifyListener;
 import de.eldoria.schematicbrush.rendering.RenderService;
+import de.eldoria.schematicbrush.rendering.PreviewService;
 import de.eldoria.schematicbrush.schematics.SchematicBrushCache;
 import de.eldoria.schematicbrush.schematics.SchematicCache;
 import de.eldoria.schematicbrush.schematics.SchematicRegistry;
@@ -400,6 +401,11 @@ public class SchematicBrushRebornImpl extends SchematicBrushReborn {
     }
 
     public RenderService renderService() {
+        return renderService;
+    }
+
+    @Override
+    public PreviewService previews() {
         return renderService;
     }
 }
